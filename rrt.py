@@ -1,30 +1,25 @@
 # Implement RRT and RRT*
 
+# Installed VSCode Code Runner extension and checked "Run in Terminal"
+
 import numpy as np 
 import math 
 import random
 from PIL import Image
-
-# Get image and convert to 2D array
-im = Image.open("world3.png")
-result = im.copy() # result image
-
-image = np.asarray(im)
-
-start = (5, 5)
-end = (670, 370)
 
 class Node:
     """Class to store the RRT graph"""
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.parent_x = []
+        self.parent_y = []
 
 # Node List
 node_list = []
 
 # Generate a random point in the maze
-def random_point(height, length):
+def random_point(image, height, length):
     check = True
     new_x = -1
     new_y = -1
@@ -54,9 +49,12 @@ def nearest_node(x, y):
 
 
 # Check for collision(s)
-# maybe make x2 > x1, y2 > y1
-def collision(x1, y1, x2, y2):
-    x_coords = list(np.arange(x1, x2, (x2 - x1)/100))
+def collision(image, x1, y1, x2, y2):
+    x_coords = []
+    if x1 == x2:
+        x_coords = []
+    else:
+        x_coords = list(np.arange(x1, x2, (x2 - x1)/100))
 
     for x in x_coords:
         x_floor = math.floor(x)
@@ -67,27 +65,28 @@ def collision(x1, y1, x2, y2):
         
     return False # no collision
     
-def check_collision(x1, y1, x2, y2):
+def check_collision(image, x1, y1, x2, y2, end, step_size):
     _, theta = dist_and_angle(x2, y2, x1, y1)
-    x = x2 + np.cos(theta)
-    y = y2 + np.sin(theta)
+    # Step Size: 3
+    x = x2 + step_size * np.cos(theta)
+    y = y2 + step_size * np.sin(theta)
 
     height = len(image)
     length = len(image[0])
 
+    # Point out of image bound
     if y < 0 or y > height or x < 0 or x > length:
-        # print("Point out of image bound")
         directCon = False
         nodeCon = False
     else:
         # check direct connection
-        if collision(x, y, end[0], end[1]):
+        if collision(image, x, y, end[0], end[1]):
             directCon = False
         else:
             directCon = True
         
         # check connection between two nodes
-        if collision(x, y, x2, y2):
+        if collision(image, x, y, x2, y2):
             nodeCon = False
         else:
             nodeCon = True
@@ -96,83 +95,129 @@ def check_collision(x1, y1, x2, y2):
     
 
 # RRT Algorithm
-def RRT(image, start, end):
+def RRT(image, start, end, iterations, step_size):
     height = len(image)
     length = len(image[0])
-    # print(height, length)
 
     node_list.append(0)
     node_list[0] = Node(start[0], start[1])
+    node_list[0].parent_x.append(start[0])
+    node_list[0].parent_y.append(start[1])
 
+    total_iter = 0
     i = 1
     pathFound = False
     while pathFound == False:
-        new_x, new_y = random_point(height, length)
-        # print("Random points:", new_x, new_y)
+        total_iter = total_iter + 1
+
+        if(total_iter == iterations):
+            print("Iteration limit exceeded.")
+            break
+
+        # Get random point
+        new_x, new_y = random_point(image, height, length)
 
         # Find the nearest node
         nearest_ind = nearest_node(new_x, new_y)
         nearest_x = node_list[nearest_ind].x
         nearest_y = node_list[nearest_ind].y
-        # print("Nearest node coordinates:", nearest_x, nearest_y)
-
 
         # Check connection(s)
-        tx, ty, directCon, nodeCon = check_collision(new_x, new_y, nearest_x, nearest_y)
+        tx, ty, directCon, nodeCon = check_collision(image, new_x, new_y, nearest_x, nearest_y, end, step_size)
 
         if directCon and nodeCon:
-            # print("Node can connect directly with end")
             node_list.append(i)
             node_list[i] = Node(tx, ty)
+            node_list[i].parent_x = node_list[nearest_ind].parent_x.copy()
+            node_list[i].parent_y = node_list[nearest_ind].parent_y.copy()
+            node_list[i].parent_x.append(tx)
+            node_list[i].parent_y.append(ty)
 
-            # print("Path has been found")
-            pathFound = True
+            # Comment: Alternative, just create straight line
 
-            # Create line between nearest_node and endpoint
-            for x in range(math.floor(nearest_x), end[0]):
-                y_floor = math.floor( ((end[1]-nearest_y)/(end[0]-nearest_x))*(x-nearest_x) + nearest_y )
-                node_list.append(Node(x, y_floor))
-
-            # print('c')
-
-            break
-
+            if end[0]-5 < tx and tx<end[0]+5 and end[1]-5 < ty and ty < end[1]+5:
+                pathFound = True
+                print("Path has been found after " + str(total_iter) + " iterations!")
+                return node_list[i].parent_x, node_list[i].parent_y
+            else:
+                i = i + 1
+                continue
         elif nodeCon:
-            # print("Nodes connected")
             node_list.append(i)
             node_list[i] = Node(tx, ty)
+            node_list[i].parent_x = node_list[nearest_ind].parent_x.copy()
+            node_list[i].parent_y = node_list[nearest_ind].parent_y.copy()
+            node_list[i].parent_x.append(tx)
+            node_list[i].parent_y.append(ty)
             i = i + 1
-
-            # print('b')
-            
+            continue
+        else:     
             continue
 
-        else:
-            # print("No direct connection and no node connection.")
-            # print("Generating new random numbers.")
-            
-            # print('a')
-            
-            continue
+def draw_result(image, result, start, end, parent_x_array, parent_y_array):
+    height = len(image)
+    length = len(image[0])
+
+    # Draw all of the nodes in the RRT
+    for node in node_list:
+        round_x = math.floor(node.x)
+        round_y = math.floor(node.y)
+        for x in range(round_x - 1, round_x + 1):
+            for y in range(round_y - 1, round_y + 1):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (255, 0, 0))
+
+    # Draw the start point
+    for x in range(start[0] - 3, start[0] + 3):
+        for y in range(start[1] - 3, start[1] + 3):
+            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                result.putpixel((x, y), (0, 255, 0))
+
+    # Draw the end point
+    for x in range(end[0] - 3, end[0] + 3):
+        for y in range(end[1] - 3, end[1] + 3):
+            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                result.putpixel((x, y), (0, 0, 255))
+
+    # Draw the path from the start point to the end point
+    for j in range(len(parent_x_array)):
+        parent_x = math.floor(parent_x_array[j])
+        parent_y = math.floor(parent_y_array[j])
+
+        for x in range(parent_x - 2, parent_x + 2):
+            for y in range(parent_y - 2, parent_y + 2):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (127, 127, 127))
 
 def main():
-    RRT(image, start, end)
+    conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
+    image = input("Enter the name of your image file (include .jpg, .png, etc.): ")
 
-    for node in node_list:
-        round_x = round(node.x)
-        round_y = round(node.y)
-        for x in range(round_x, round_x + 1):
-            for y in range(round_y, round_y + 1):
-                result.putpixel((x, y), (255, 0, 0))
+    # Get image and convert to 2D array
+    im = Image.open(image)
+    image = np.asarray(im)
 
-    for x in range(start[0], start[0] + 1):
-        for y in range(start[1], start[1] + 1):
-            result.putpixel((x, y), (0, 0, 255))
+    start = input('Enter your start point in the form of "(x, y)": ')
+    end = input('Enter your end point in the form of "(x, y)": ')
 
-    for x in range(end[0], end[0] + 1):
-        for y in range(end[1], end[1] + 1):
-            result.putpixel((x, y), (0, 0, 255))
-        
+    start_comma = start.index(',')
+    end_comma = end.index(',')
+
+    start_first_number = int(start[1:start_comma])
+    start_second_number = int(start[start_comma+2:len(start)-1])
+    end_first_number = int(end[1:end_comma])
+    end_second_number = int(end[end_comma+2:len(end)-1])
+
+    start = (start_first_number, start_second_number)
+    end = (end_first_number, end_second_number)
+
+    iterations = input('Enter the number of iterations (10000 recommended): ')
+    step_size = int(input('Enter the step size of the RRT (3 recommended): '))
+
+    parent_x_array, parent_y_array = RRT(image, start, end, iterations, step_size)
+
+    result = im.copy() # result image
+    draw_result(image, result, start, end, parent_x_array, parent_y_array)
     result.show()
 
 if __name__ == '__main__':

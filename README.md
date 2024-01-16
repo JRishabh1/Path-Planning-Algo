@@ -7,5 +7,6 @@ https://achieved-scissor-d10.notion.site/1-11-Initial-Meeting-9f7a68183b324d34b6
 
 ## Notes
 
-The rrt_connect_line.py implementation of RRT seems to be the fastest.
-However, I don't think its the complete intended implementation of RRT Connect, so I will edit more later!
+The rrt_connect_line.py implementation should be done, but I'm not sure if it's perfect.
+I plan on implementing the variant where you delete the branch if there's a collision, and I've been 
+thinking about modifying the probability of how random points are chosen.

@@ -4,23 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import math
-# import OpenCV???
-
-# Each iteration takes a long time
-def Laplace(image, potential_map):
-    h = len(image)
-    l = len(image[0])
-
-    # create a new map and return that
-    result = potential_map.copy()
-
-    for y in range(len(result)):
-        for x in range(len(result[0])):
-            if x != 0 and x != l-1 and y != 0 and y != h-1 and image[y][x][0] == 255 and potential_map[y][x] != 0:
-                result[y][x] = potential_map[y-1][x] + potential_map[y+1][x] + potential_map[y][x-1] + potential_map[y][x+1]
-                result[y][x] = result[y][x] / 4
-
-    return result
+import cv2 # OpenCV
 
 # Do gradient descent until you reach the goal
 def gradient_descent(start, end, map, iterations, step_size):
@@ -35,7 +19,7 @@ def gradient_descent(start, end, map, iterations, step_size):
     limit = 0
     while True:
         if limit > iterations:
-            print('Iteration limit exceeded!')
+            print('Path not found! Maybe try providing more Laplace iterations!')
             break
 
         gradr = map[round(poser+1)][round(posec)] - map[round(poser-1)][round(posec)]
@@ -58,41 +42,41 @@ def gradient_descent(start, end, map, iterations, step_size):
     return path_y, path_x
 
 # Draw the path on the result image
-def draw_path(start, end, path_x, path_y, image, result):
+def draw_path(start, end, path_x, path_y, step_size, image, result):
     # Get height and length of image
     height = len(image)
     length = len(image[0])
 
     # Draw the start point
-    for x in range(start[0] - 1, start[0] + 1):
-        for y in range(start[1] - 1, start[1] + 1):
+    for x in range(start[0] - step_size, start[0] + step_size):
+        for y in range(start[1] - step_size, start[1] + step_size):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 255, 0))
 
     # Draw the end point
-    for x in range(end[0] - 1, end[0] + 1):
-        for y in range(end[1] - 1, end[1] + 1):
+    for x in range(end[0] - step_size, end[0] + step_size):
+        for y in range(end[1] - step_size, end[1] + step_size):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
 
     # Draw the nodes drawn from the start point to the end point
     for j in range(len(path_x)):
-        x = math.floor(path_x[j])
-        y = math.floor(path_y[j])
+        px = round(path_x[j])
+        py = round(path_y[j])
 
-        if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-            result.putpixel((x, y), (127, 127, 127))
+        # print("(" + str(px) + ", " + str(py) + ")")
+
+        for x in range(px - math.floor(step_size/2), px + math.floor(step_size/2)):
+            for y in range(py - math.floor(step_size/2), py + math.floor(step_size/2)):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (127, 127, 127))
             
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
     image = input("Enter the name of your image file (include .jpg, .png, etc.): ")
 
-    # Get image 
+    # Get image and convert to 2D array
     im = Image.open(image)
-
-    # Draw Obstacles
-
-    # Convert image to 2D array
     image = np.asarray(im)
 
     start = input('Enter your start point in the form of "(x, y)": ')
@@ -109,9 +93,9 @@ def main():
     start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
 
-    grad_itr = int(input('Enter the number of gradient descent iterations (10000 recommended): '))
-    laplace_itr = int(input('Enter the number of Laplace iterations (5000 recommended): '))
-    step_size = int(input('Enter the gradient descent step size (2 recommended): '))
+    grad_itr = int(input('Enter the number of gradient descent iterations (1000 recommended): '))
+    laplace_itr = int(input('Enter the number of Laplace iterations (10000-100000 recommended): '))
+    step_size = int(input('Enter the gradient descent step size (2-10 recommended): '))
 
     result = im.copy() # result image
 
@@ -123,17 +107,43 @@ def main():
     potential_map = np.ones((height, length)) # add 2 to both dimensions?
     potential_map[end[1]][end[0]] = 0 # Goal
 
-    # Apply the Laplace equation on the graph a number of times
-    for i in range(laplace_itr): 
-        potential_map = Laplace(image, potential_map)
+    # Get the black walls
+    boundary_x = []
+    boundary_y = []
+    for y in range(height):
+        for x in range(length):
+            if(image[y][x][0] == 0):
+                boundary_x.append(x)
+                boundary_y.append(y)
 
-    plt.imshow(potential_map, cmap='gray')
-    plt.show()
+    # Kernel for Laplace equation
+    kernel = np.array([[0.00, 0.25, 0.00],
+                       [0.25, 0.00, 0.25],
+                       [0.00, 0.25, 0.00]])
+
+    # Apply the Laplace equation on the graph a number of times (I will put into another function later)
+    for i in range(laplace_itr): 
+        potential_map = cv2.filter2D(potential_map, -1, kernel)
+
+        # Reset boundary points
+        potential_map[end[1]][end[0]] = 0 # Goal
+        for b in range(len(boundary_y)):
+            potential_map[boundary_y[b]][boundary_x[b]] = 1
+        for y in range(height):
+            potential_map[y][0] = 1
+            potential_map[y][length-1] = 1
+        for x in range(length):
+            potential_map[0][x] = 1
+            potential_map[height-1][x] = 1
+
+    # plt.imshow(potential_map, cmap='gray')
+    # plt.show()
         
     path_y, path_x = gradient_descent(start, end, potential_map, grad_itr, step_size)
-    draw_path(start, end, path_x, path_y, image, result)
+    draw_path(start, end, path_x, path_y, step_size, image, result)
 
-    result = result.resize((300, 300))
+    if height < 150 or length < 150:
+        result = result.resize((300, 300))
     result.show()
 
     # im.save('tinyimage1.png')

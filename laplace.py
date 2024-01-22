@@ -66,10 +66,13 @@ def draw_path(start, end, path_x, path_y, step_size, image, result):
 
         # print("(" + str(px) + ", " + str(py) + ")")
 
-        for x in range(px - math.floor(step_size/2), px + math.floor(step_size/2)):
-            for y in range(py - math.floor(step_size/2), py + math.floor(step_size/2)):
-                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                    result.putpixel((x, y), (127, 127, 127))
+        if step_size == 1:
+            result.putpixel((px, py), (127, 127, 127))
+        else:
+            for x in range(px - math.floor(step_size/2), px + math.floor(step_size/2)):
+                for y in range(py - math.floor(step_size/2), py + math.floor(step_size/2)):
+                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                        result.putpixel((x, y), (127, 127, 127))
             
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
@@ -77,7 +80,13 @@ def main():
 
     # Get image and convert to 2D array
     im = Image.open(image)
+    im = im.resize((130, 70)) # just to make the image smaller
     image = np.asarray(im)
+
+    height = len(image)
+    length = len(image[0])
+
+    print('Size of image: ' + str(length) + ' pixels by ' + str(height) + ' pixels!')
 
     start = input('Enter your start point in the form of "(x, y)": ')
     end = input('Enter your end point in the form of "(x, y)": ')
@@ -93,16 +102,11 @@ def main():
     start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
 
-    grad_itr = int(input('Enter the number of gradient descent iterations (1000 recommended): '))
-    laplace_itr = int(input('Enter the number of Laplace iterations (10000-100000 recommended): '))
-    step_size = int(input('Enter the gradient descent step size (2-10 recommended): '))
+    grad_itr = int(input('Enter the number of gradient descent iterations (10000 recommended): '))
+    laplace_itr = int(input('Enter the number of Laplace iterations (10000 recommended): '))
+    step_size = int(input('Enter the gradient descent step size (2 recommended): '))
 
     result = im.copy() # result image
-
-    height = len(image)
-    length = len(image[0])
-
-    print('Size of image: ' + str(height) + ' pixels by ' + str(length) + ' pixels!')
 
     potential_map = np.ones((height, length)) # add 2 to both dimensions?
     potential_map[end[1]][end[0]] = 0 # Goal
@@ -142,8 +146,9 @@ def main():
     path_y, path_x = gradient_descent(start, end, potential_map, grad_itr, step_size)
     draw_path(start, end, path_x, path_y, step_size, image, result)
 
-    if height < 150 or length < 150:
-        result = result.resize((300, 300))
+    # if height < 150 or length < 150: # for tiny images
+    #     result = result.resize((300, 300))
+    result = result.resize((650, 350)) # make image large again
     result.show()
 
     # im.save('tinyimage1.png')

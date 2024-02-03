@@ -6,6 +6,7 @@ import numpy as np
 import math 
 import random
 from PIL import Image
+import cv2
 
 class Node:
     """Class to store the RRT graph"""
@@ -17,8 +18,7 @@ class Node:
 
 # Generate a random point in the maze
         
-# TRY TO VARY THE PROBABILITY AND EXPERIMENT!!!
-def random_point(image, height, length):
+def random_point(image, height, length, potential_map, kernel, boundary_x, boundary_y, end):
     check = True
     new_x = -1
     new_y = -1
@@ -26,11 +26,12 @@ def random_point(image, height, length):
     while check:
         new_x = random.randint(0, length - 1)
         new_y = random.randint(0, height - 1)
+        potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end)
 
-        if(image[new_y][new_x][0] == 255):
+        if(image[new_y][new_x][0] == 255 and random.random() * 5 > potential_map[new_y][new_x]):
             check = False
     
-    return (new_x, new_y)
+    return (new_x, new_y, potential_map)
 
 # Return the distance and angle between the new point and nearest node
 def dist_and_angle(x1, y1, x2, y2):
@@ -89,6 +90,20 @@ def check_collision(image, x1, y1, x2, y2, end, step_size):
 
     return (x, y, False, nodeCon)
     
+def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end):
+    potential_map = cv2.filter2D(potential_map, -1, kernel)
+
+    # Reset boundary points
+    potential_map[end[1]][end[0]] = 0 # Goal
+    for b in range(len(boundary_y)):
+        potential_map[boundary_y[b]][boundary_x[b]] = 1
+    for y in range(height):
+        potential_map[y][0] = 1
+        potential_map[y][length-1] = 1
+    for x in range(length):
+        potential_map[0][x] = 1
+        potential_map[height-1][x] = 1
+    return potential_map
 
 # RRT Algorithm
 def RRT_Connect(image, start, end, iterations, step_size, node_list1, node_list2):
@@ -108,8 +123,29 @@ def RRT_Connect(image, start, end, iterations, step_size, node_list1, node_list2
     total_iter = 0
     i1 = 1
     i2 = 1
+
+    potential_map = np.ones((height, length))
+    potential_map[end[1]][end[0]] = 0 # Goal
+    # Get the black walls
+    boundary_x = []
+    boundary_y = []
+    for y in range(height):
+        for x in range(length):
+            if(image[y][x][0] == 0):
+                boundary_x.append(x)
+                boundary_y.append(y)
+
+    # Kernel for Laplace equation
+    kernel = np.array([[0.00, 0.25, 0.00],
+                       [0.25, 0.00, 0.25],
+                       [0.00, 0.25, 0.00]])
+    for _ in range(100):
+        potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end)
+
+
     while True:
         total_iter = total_iter + 1
+        potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end)
 
         if(total_iter >= iterations):
             print("Iteration limit reached.")
@@ -117,8 +153,8 @@ def RRT_Connect(image, start, end, iterations, step_size, node_list1, node_list2
             #break
 
         # Get random points
-        new1_x, new1_y = random_point(image, height, length)
-        new2_x, new2_y = random_point(image, height, length)
+        new1_x, new1_y, potential_map = random_point(image, height, length, potential_map, kernel, boundary_x, boundary_y, end)
+        new2_x, new2_y, potential_map = random_point(image, height, length, potential_map, kernel, boundary_x, boundary_y, end)
 
         # Find the nearest node
         nearest1_ind = nearest_node(new1_x, new1_y, node_list1)

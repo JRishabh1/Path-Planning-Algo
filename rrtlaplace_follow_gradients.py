@@ -7,6 +7,7 @@ import math # Math
 import random # Random
 from PIL import Image # Image
 import cv2 # CV2
+from timeit import default_timer as timer # Timer
 
 class Node:
     """Class to store the RRT graph"""
@@ -25,6 +26,7 @@ def random_point(image, height, length):
         new_x = random.randint(0, length - 1)
         new_y = random.randint(0, height - 1)
 
+        # If the pixel is black
         if(image[new_y][new_x][0] > 220):
             check = False
     
@@ -64,31 +66,24 @@ def collision(image, x1, y1, x2, y2):
         
     return False # no collision
     
-def check_collision(image, x1, y1, x2, y2, end, step_size):
+def check_collision(image, x1, y1, x2, y2):
     height = len(image)
     length = len(image[0])
 
     # Point out of image bound
     if y1 < 0 or y2 > height-1 or x1 < 0 or x2 > length-1:
-        directCon = False
         nodeCon = False
     else:
-        # check direct connection
-        if collision(image, x1, y1, end[0], end[1]):
-            directCon = False
-        else:
-            directCon = True
-        
         # check connection between two nodes
         if collision(image, x1, y1, x2, y2):
             nodeCon = False
         else:
             nodeCon = True
 
-    return (directCon, nodeCon)
+    return nodeCon
 
 # RRT Algorithm
-def RRT(image, node_list, potential_map, boundary, start, end, iterations, step_size):
+def RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, laplaceIterations, step_size):
     # Height and length for image
     height = len(image)
     length = len(image[0])
@@ -107,7 +102,7 @@ def RRT(image, node_list, potential_map, boundary, start, end, iterations, step_
     while True:
         total_iter = total_iter + 1
 
-        if(total_iter >= iterations):
+        if(total_iter >= RRTIterations):
             print("Iteration limit exceeded.")
             return []
             # break
@@ -121,13 +116,13 @@ def RRT(image, node_list, potential_map, boundary, start, end, iterations, step_
         nearest_y = node_list[nearest_ind].y
 
         # Check connection(s)
-        _, nodeCon = check_collision(image, new_x, new_y, nearest_x, nearest_y, end, step_size)
+        nodeCon = check_collision(image, new_x, new_y, nearest_x, nearest_y)
 
         if nodeCon:
             # Laplace Equation
             map = potential_map.copy()
         
-            for j in range(250): 
+            for j in range(laplaceIterations): 
                 map = cv2.filter2D(map, -1, kernel)
 
                 # Reset boundary points
@@ -146,6 +141,7 @@ def RRT(image, node_list, potential_map, boundary, start, end, iterations, step_
             posec = nearest_x
 
             limit = 0
+            startOfLoop = True
             while True:
                 if limit > 1000:
                     # print('Path not found! Maybe try providing more Laplace iterations!')
@@ -162,52 +158,63 @@ def RRT(image, node_list, potential_map, boundary, start, end, iterations, step_
                 
                 node_list.append(i)
                 node_list[i] = Node(posec, poser)
+                if startOfLoop:
+                    node_list[i].parent = node_list[nearest_ind].parent.copy()
+                    node_list[i].parent.append(node_list[i])
+                else:
+                    node_list[i].parent = node_list[i-1].parent.copy()
+                    node_list[i].parent.append(node_list[i])
                 i = i + 1
 
                 if(end[1]-step_size-1 < poser and poser < end[1]+step_size+1 and end[0]-step_size-1 < posec and posec < end[0]+step_size+1):
-                    print("Number of iterations: " + str(total_iter))
-                    return []
+                    print("Number of RRT iterations: " + str(total_iter))
+                    # path from start to end
+                    if startOfLoop:
+                        return node_list[nearest_ind].parent
+                    else:
+                        return node_list[i].parent 
 
                 if(new_y-step_size-1 < poser and poser < new_y+step_size+1 and new_x-step_size-1 < posec and posec < new_x+step_size+1):
                     break
 
                 limit = limit + 1
+                startOfLoop = False
             
-
+# Draw the nodes and the path
 def draw_result(image, node_list, result, start, end, parent_array):
     height = len(image)
     length = len(image[0])
 
     # Draw all of the nodes in the RRT
     for node in node_list:
-        round_x = math.floor(node.x)
-        round_y = math.floor(node.y)
+        round_x = round(node.x)
+        round_y = round(node.y)
         for x in range(round_x - 1, round_x + 1):
             for y in range(round_y - 1, round_y + 1):
                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                     result.putpixel((x, y), (255, 0, 0))
 
     # Draw the start point
-    for x in range(start[0] - 3, start[0] + 3):
-        for y in range(start[1] - 3, start[1] + 3):
+    for x in range(start[0] - 2, start[0] + 2):
+        for y in range(start[1] - 2, start[1] + 2):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 255, 0))
 
     # Draw the end point
-    for x in range(end[0] - 3, end[0] + 3):
-        for y in range(end[1] - 3, end[1] + 3):
+    for x in range(end[0] - 2, end[0] + 2):
+        for y in range(end[1] - 2, end[1] + 2):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
 
     # Draw the path from the start point to the end point (IMPLEMENT THIS LATER!!)
-    # for j in range(len(parent_array)):
-    #     parent_x = math.floor(parent_array[j].x)
-    #     parent_y = math.floor(parent_array[j].y)
+    for j in range(len(parent_array)):
+        parent_x = round(parent_array[j].x)
+        parent_y = round(parent_array[j].y)
 
-    #     for x in range(parent_x - 2, parent_x + 2):
-    #         for y in range(parent_y - 2, parent_y + 2):
-    #             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-    #                 result.putpixel((x, y), (127, 127, 127))
+        for x in range(parent_x - 1, parent_x + 1):
+            for y in range(parent_y - 1, parent_y + 1):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (127, 127, 127))
 
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
@@ -215,16 +222,24 @@ def main():
 
     # Get image and convert to 2D array
     im = Image.open(image)
+    w, h = im.size
 
-    im = im.resize((169, 91)) # just to make the image smaller
+    print('Dimensions of image: ' + str(w) + " pixels by " + str(h) + " pixels!")
+
+    # Varying the resizing
+    scaleDownFactor = int(input('Input the factor for scaling down the image (4 recommended): '))
+
+    im = im.resize((round(w / scaleDownFactor), round(h / scaleDownFactor))) # just to make the image smaller
 
     image = np.asarray(im)
 
     height = len(image)
     length = len(image[0])
 
-    start = input('Enter your start point in the form of "(x, y)": ')
-    end = input('Enter your end point in the form of "(x, y)": ')
+    print('Dimensions of scaled image: ' + str(length) + " pixels by " + str(height) + " pixels!")
+
+    start = input('Enter your start point (unit: pixel) in the form of "(x, y)": ')
+    end = input('Enter your end point (unit: pixel) in the form of "(x, y)": ')
 
     start_comma = start.index(',')
     end_comma = end.index(',')
@@ -237,8 +252,19 @@ def main():
     start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
 
-    iterations = int(input('Enter the number of RRT iterations (10000 recommended): '))
+    if(start_first_number < 0 or start_first_number >= length or start_second_number < 0 or start_second_number >= height):
+        raise Exception("Sorry, the inputted start point is not in the image!")
+    
+    if(end_first_number < 0 or end_first_number >= length or end_second_number < 0 or end_second_number >= height):
+        raise Exception("Sorry, the inputted end point is not in the image!")
+
+    RRTIterations = int(input('Enter the number of RRT iterations (10000 recommended): '))
+    laplaceIterations = int(input('Enter the number of Laplace equation iterations (250 recommended): '))
     step_size = int(input('Enter the step size of the RRT (3 recommended): '))
+
+
+    startTime = timer()
+
 
     node_list = [] # Node List!
 
@@ -249,18 +275,30 @@ def main():
     for y in range(height):
         for x in range(length):
             if(image[y][x][0] == 0):
+                if(start_first_number == x and start_second_number == y):
+                    raise Exception("Sorry, the inputted end point is on the boundary!")
+                
+                if(end_first_number == x and end_second_number == y):
+                    raise Exception("Sorry, the inputted end point is on the boundary!")
+
                 boundary.append(Node(x, y))
 
-    parent_array = RRT(image, node_list, potential_map, boundary, start, end, iterations, step_size)
+
+    parent_array = RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, laplaceIterations, step_size)
 
     result = im.copy() # result image
 
     draw_result(image, node_list, result, start, end, parent_array)
 
 
-    result = result.resize((650, 350)) # make image large again
+    result = result.resize((w, h)) # make image large again
 
     result.show()
+
+    
+    endTime = timer()
+
+    print("This took " + str(round(endTime-startTime, 3)) + " seconds!")
 
 
 if __name__ == '__main__':

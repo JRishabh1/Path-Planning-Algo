@@ -7,6 +7,8 @@ import math
 import random
 from PIL import Image
 import cv2
+import imageio
+
 
 class Node:
     """Class to store the RRT graph"""
@@ -19,11 +21,14 @@ class Node:
 # Node List
 node_list = []
 
+# Results
+result_images = []
+
 # Generate a random point in the maze
 def random_point(start, height, length, potential_map):
     new_x = random.randint(0, length - 1)#start[1]
     new_y = random.randint(0, height - 1)#start[0]
-    if(random.random() > 0.95):
+    if(random.random() > 0.95):#0.999):
         new_x = start[1]
         new_y = start[0]
 
@@ -88,7 +93,7 @@ def RRT(image, start, end, iterations, step_size):
     kernel = np.array([[0.00, 0.25, 0.00],
                        [0.25, 0.00, 0.25],
                        [0.00, 0.25, 0.00]])
-    for _ in range(5000):
+    for _ in range(250):
         potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
     while pathFound == False:
         total_iter = total_iter + 1
@@ -107,6 +112,18 @@ def RRT(image, start, end, iterations, step_size):
         new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
         i = i + len(new_node_list)
         node_list.extend(new_node_list)
+        # HERE - Drawing image step by step
+        if(len(new_node_list) != 0):
+
+            im = Image.open("world4.png")
+            result = im.copy() # result image
+            draw_result(image, result, start, end, node_list)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+            for x in range(new_x - 3, new_x + 3):
+                for y in range(new_y - 3, new_y + 3):
+                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                        result.putpixel((x, y), (0, 255, 255))
+            result_images.append(result)
+        # TO HERE
         if len(new_node_list) != 0 and int(new_x) == start[0] and int(new_y) == start[1]:
             pathFound = True
     return node_list
@@ -227,6 +244,30 @@ def main():
     result = im.copy() # result image
     draw_result(image, result, start, end, node_list)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
     result.show()
+
+    output_path = 'output_video.mp4'
+    #images.sort()  # Sort the images by name (ensure they are in the correct order)
+
+    # Create a writer object
+    writer = imageio.get_writer(output_path, fps=30)
+
+    for image_filename in result_images:
+        # image_path = os.path.join("", image_filename)
+        # image = imageio.imread(image_path)
+        writer.append_data(np.array(image_filename))
+    
+    writer.close()
+
+    # #videodims = (700,500)
+    # fourcc = cv2.VideoWriter_fourcc(*'avc1')    
+    # video = cv2.VideoWriter("test.mp4",fourcc, 60,(len(image), len(image[0])))
+    # #img = Image.new('RGB', videodims, color = 'darkred')
+    # #draw stuff that goes on every frame here
+    # for result_image in result_images:
+    #     #imtemp = img.copy()
+    #     # draw frame specific stuff here.
+    #     video.write(cv2.cvtColor(np.array(result_image), cv2.COLOR_RGB2BGR))
+    # video.release()
 
 if __name__ == '__main__':
     main()

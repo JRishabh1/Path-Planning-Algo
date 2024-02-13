@@ -23,10 +23,22 @@ node_list = []
 def random_point(start, height, length, potential_map):
     new_x = random.randint(0, length - 1)#start[1]
     new_y = random.randint(0, height - 1)#start[0]
+    if(random.random() > 0.95):
+        new_x = start[1]
+        new_y = start[0]
 
-    while potential_map[new_y][new_x] == 1:
+    # needToFindNew = False
+    # for node in node_list:
+    #         if(int(node.y) == int(new_y) and int(node.x) == int(new_x)):
+    #             needToFindNew = True
+
+    while potential_map[new_y][new_x] == 1: #or needToFindNew
         new_x = random.randint(0, length - 1)
         new_y = random.randint(0, height - 1)
+        # needToFindNew = False
+        # for node in node_list:
+        #     if(int(node.y) == int(new_y) and int(node.x) == int(new_x)):
+        #         needToFindNew = True
     
     
     return (new_x, new_y, potential_map)
@@ -76,7 +88,7 @@ def RRT(image, start, end, iterations, step_size):
     kernel = np.array([[0.00, 0.25, 0.00],
                        [0.25, 0.00, 0.25],
                        [0.00, 0.25, 0.00]])
-    for _ in range(500):
+    for _ in range(5000):
         potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
     while pathFound == False:
         total_iter = total_iter + 1
@@ -89,7 +101,7 @@ def RRT(image, start, end, iterations, step_size):
         # Get random point
         new_x, new_y, potential_map = random_point(start, height, length, potential_map)
         
-        for _ in range(500):
+        for _ in range(250):
             potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
 
         new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
@@ -102,12 +114,18 @@ def RRT(image, start, end, iterations, step_size):
 def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
     poser = new_y
     posec = new_x
+    toAppend = Node(int(posec), int(poser))
+        # toAppend.parent_x.append(node_list[limit].x)
+        # toAppend.parent_y.append(node_list[limit].u)
+    
 
     limit = 0
     new_node_list = []
+    new_node_list.append(toAppend)
     while True:
-        if limit > 100:
+        if limit > 1000:
             # print('Path not found! Maybe try providing more Laplace iterations!')
+            print("Couldn't find - Stuck :(")
             break
 
         gradr = potential_map[round(poser+1)][round(posec)] - potential_map[round(poser-1)][round(posec)]
@@ -126,6 +144,15 @@ def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
         new_node_list.append(toAppend)
         limit = limit + 1
 
+        # if(potential_map[int(poser)][int(posec)] == 0):
+        #     print("Found from ")
+        #     print(new_x)
+        #     print(new_y)
+        #     print("to")
+        #     print(poser)
+        #     print(posec)
+        #     return new_node_list
+            
         for node in node_list:
             if(node.y-step_size-1 < poser and poser < node.y+step_size+1 and node.x-step_size-1 < posec and posec < node.x+step_size+1):
                 
@@ -136,11 +163,11 @@ def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
                 print(node.x)
                 print(node.y)
                 return new_node_list
-                #break
+               # break
 
-        if(new_y-step_size-1 < poser and poser < new_y+step_size+1 and new_x-step_size-1 < posec and posec < new_x+step_size+1):
-            print("Stuck :(")
-            return []
+        # if(new_y-step_size-1 < poser and poser < new_y+step_size+1 and new_x-step_size-1 < posec and posec < new_x+step_size+1):
+        #     print("Stuck :(")
+        #     return []
 
 
 # def draw_result(image, result, start, end, parent_x_array, parent_y_array):
@@ -169,17 +196,7 @@ def draw_result(image, result, start, end, node_list):
         for y in range(end[1] - 3, end[1] + 3):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
-
-    # Draw the path from the start point to the end point
-    # for j in range(len(parent_x_array)):
-    #     parent_x = math.floor(parent_x_array[j])
-    #     parent_y = math.floor(parent_y_array[j])
-
-    #     for x in range(parent_x - 2, parent_x + 2):
-    #         for y in range(parent_y - 2, parent_y + 2):
-    #             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-    #                 result.putpixel((x, y), (127, 127, 127))
-
+                
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
     image = input("Enter the name of your image file (include .jpg, .png, etc.): ")

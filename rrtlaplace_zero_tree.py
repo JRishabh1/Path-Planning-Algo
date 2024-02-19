@@ -1,5 +1,7 @@
 # Implement RRT and RRT*
 
+# JUST PULL THEIR CODE LATER!!!
+
 # Installed VSCode Code Runner extension and checked "Run in Terminal"
 
 import numpy as np # NumPy
@@ -8,6 +10,7 @@ import random # Random
 from PIL import Image # Image
 import cv2 # CV2
 from timeit import default_timer as timer # Timer
+import imageio
 
 class Node:
     """Class to store the RRT graph"""
@@ -15,6 +18,11 @@ class Node:
         self.x = x
         self.y = y
         self.parent = []
+
+
+# Result Images for Video:
+result_images = []
+
 
 # Generate a random point in the maze
 def random_point(image, height, length):
@@ -83,7 +91,8 @@ def check_collision(image, x1, y1, x2, y2):
     return nodeCon
 
 # RRT Algorithm
-def RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, laplaceIterations, step_size):
+def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, file_name, scaleDownFactor):
+
     # Height and length for image
     height = len(image)
     length = len(image[0])
@@ -107,6 +116,7 @@ def RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, la
             # break
 
         # Get random point
+        # new_x, new_y = random_point(image, height, length)
         new_x, new_y = random_point(image, height, length)
 
         # Laplace Equation
@@ -132,9 +142,11 @@ def RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, la
         posec = new_x
 
         limit = 0
+        new_node_list = []
+        check2 = False
         # startOfLoop = True
         while True:
-            if limit > 1000:
+            if limit > 250:
                 # print('Path not found! Maybe try providing more Laplace iterations!')
                 break
 
@@ -147,28 +159,52 @@ def RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, la
                 poser = poser-a*gradr
                 posec = posec-a*gradc
 
+            # If there is no gradient/no motion, throw away random point
             if(poser != new_y and posec != new_x):
-                node_list.append(Node(posec, poser))
+                new_node_list.append(Node(posec, poser))
                 zero_tree.append(Node(round(posec), round(poser)))
-            # # Stop if there's no path:
-            # if(poser == new_x and posec == new_y):
-            #     break
+                check2 = True
+
+                # Put image in video
+                im = Image.open(file_name)
+                w, h = im.size
+
+                im = im.resize((round(w / scaleDownFactor), round(h / scaleDownFactor))) # just to make the image smaller
+                videoResult = im.copy()
+
+                draw_result(image, node_list, videoResult, end, step_size)
+                draw_result(image, new_node_list, videoResult, end, step_size)
+                for x in range(round(posec) - step_size, round(posec) + step_size):
+                    for y in range(round(poser) - step_size, round(poser) + step_size):
+                        if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                            videoResult.putpixel((x, y), (255, 0, 0))
+
+                videoResult = videoResult.resize((w, h)) # make image large again
+                result_images.append(videoResult)
             
-            # temp_list.append(Node(round(posec), round(poser)))
-
-            # node_list.append(i)
-            # node_list[i] = Node(posec, poser)
-            # zero_tree.append(Node(round(posec), round(poser)))
-            # i = i + 1
-
-            if(map[round(poser)][round(posec)] < 0.15):
-                # print("Number of RRT iterations: " + str(total_iter))
+            
+            # DRAWING WITH THINNER LINE MAY REDUCE CLUSTERS!!!
+            # Stop gradient descent
+            check = False
+            for node in node_list:
+                if node.x - round(step_size/2) - 1 < posec and posec < node.x + round(step_size/2) + 1 and node.y - round(step_size/2) - 1 < poser and poser < node.y + round(step_size/2) + 1:
+                    check = True
+            if check == True:
                 break
+                
+            # if(map[round(poser)][round(posec)] < 0.05):
+            #     break
 
             limit = limit + 1
-            
+
+        if check2 == True:
+            node_list.append(Node(new_x, new_y))
+            zero_tree.append(Node(round(new_x), round(new_y)))
+        node_list.extend(new_node_list)
+        
+
 # Draw the nodes and the path
-def draw_result(image, node_list, result, start, end, parent_array):
+def draw_result(image, node_list, result, end, step_size):
     height = len(image)
     length = len(image[0])
 
@@ -176,20 +212,34 @@ def draw_result(image, node_list, result, start, end, parent_array):
     for node in node_list:
         round_x = round(node.x)
         round_y = round(node.y)
-        for x in range(round_x - 1, round_x + 1):
-            for y in range(round_y - 1, round_y + 1):
-                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                    result.putpixel((x, y), (255, 0, 0))
+
+        if step_size == 1:
+            if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
+                result.putpixel((round_x, round_y), (255, 0, 0))
+        else:
+            for x in range(round_x - math.floor(step_size/2), round_x + math.floor(step_size/2)):
+                for y in range(round_y - math.floor(step_size/2), round_y + math.floor(step_size/2)):
+                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                        result.putpixel((x, y), (255, 0, 0))
+
+        # "Anti-aliasing"? when drawing pixel box, maybe not fill in 100% or brightness 100%?
+        
+
+        # "Anti-aliasing"? when drawing pixel box, maybe not fill in 100% or brightness 100%?
+        # for x in range(round_x - 1, round_x + 1):
+        #     for y in range(round_y - 1, round_y + 1):
+        #         if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+        #             result.putpixel((x, y), (255, 0, 0))
 
     # Draw the start point
-    for x in range(start[0] - 2, start[0] + 2):
-        for y in range(start[1] - 2, start[1] + 2):
-            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                result.putpixel((x, y), (0, 255, 0))
+    # for x in range(start[0] - 2, start[0] + 2):
+    #     for y in range(start[1] - 2, start[1] + 2):
+    #         if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+    #             result.putpixel((x, y), (0, 255, 0))
 
     # Draw the end point
-    for x in range(end[0] - 2, end[0] + 2):
-        for y in range(end[1] - 2, end[1] + 2):
+    for x in range(end[0] - step_size, end[0] + step_size):
+        for y in range(end[1] - step_size, end[1] + step_size):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
 
@@ -206,6 +256,7 @@ def draw_result(image, node_list, result, start, end, parent_array):
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
     image = input("Enter the name of your image file (include .jpg, .png, etc.): ")
+    file_name = image
 
     # Get image and convert to 2D array
     im = Image.open(image)
@@ -225,22 +276,22 @@ def main():
 
     print('Dimensions of scaled image: ' + str(length) + " pixels by " + str(height) + " pixels!")
 
-    start = input('Enter your start point (unit: pixel) in the form of "(x, y)": ')
+    # start = input('Enter your start point (unit: pixel) in the form of "(x, y)": ')
     end = input('Enter your end point (unit: pixel) in the form of "(x, y)": ')
 
-    start_comma = start.index(',')
+    # start_comma = start.index(',')
     end_comma = end.index(',')
 
-    start_first_number = int(start[1:start_comma])
-    start_second_number = int(start[start_comma+2:len(start)-1])
+    # start_first_number = int(start[1:start_comma])
+    # start_second_number = int(start[start_comma+2:len(start)-1])
     end_first_number = int(end[1:end_comma])
     end_second_number = int(end[end_comma+2:len(end)-1])
 
-    start = (start_first_number, start_second_number)
+    # start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
 
-    if(start_first_number < 0 or start_first_number >= length or start_second_number < 0 or start_second_number >= height):
-        raise Exception("Sorry, the inputted start point is not in the image!")
+    # if(start_first_number < 0 or start_first_number >= length or start_second_number < 0 or start_second_number >= height):
+    #     raise Exception("Sorry, the inputted start point is not in the image!")
     
     if(end_first_number < 0 or end_first_number >= length or end_second_number < 0 or end_second_number >= height):
         raise Exception("Sorry, the inputted end point is not in the image!")
@@ -249,11 +300,15 @@ def main():
     laplaceIterations = int(input('Enter the number of Laplace equation iterations (250 recommended): '))
     step_size = int(input('Enter the step size of the RRT (3 recommended): '))
 
+    output_path = input('Enter the desired video file name (include .mp4 at the end, make it descriptive based on the parameters entered): ')
+    fps = int(input('Enter the fps of video (recommended 10 for small videos, 30+ for longer): '))
+
 
     startTime = timer()
 
 
     node_list = [] # Node List!
+    node_list.append(Node(end[0], end[1]))
 
     potential_map = np.ones((height, length)) # add 2 to both dimensions?
 
@@ -262,8 +317,8 @@ def main():
     for y in range(height):
         for x in range(length):
             if(image[y][x][0] == 0):
-                if(start_first_number == x and start_second_number == y):
-                    raise Exception("Sorry, the inputted end point is on the boundary!")
+                # if(start_first_number == x and start_second_number == y):
+                #     raise Exception("Sorry, the inputted end point is on the boundary!")
                 
                 if(end_first_number == x and end_second_number == y):
                     raise Exception("Sorry, the inputted end point is on the boundary!")
@@ -271,14 +326,13 @@ def main():
                 boundary.append(Node(x, y))
 
 
-    parent_array = RRT(image, node_list, potential_map, boundary, start, end, RRTIterations, laplaceIterations, step_size)
+    parent_array = RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, file_name, scaleDownFactor)
 
     result = im.copy() # result image
-
-    draw_result(image, node_list, result, start, end, parent_array)
-
+    draw_result(image, node_list, result, end, step_size)
 
     result = result.resize((w, h)) # make image large again
+    result_images.append(result)
 
     result.show()
 
@@ -286,6 +340,14 @@ def main():
     endTime = timer()
 
     print("This took " + str(round(endTime-startTime, 3)) + " seconds!")
+
+
+    writer = imageio.get_writer(output_path, fps=fps)
+
+    for image_filename in result_images:
+        writer.append_data(np.array(image_filename))
+
+    writer.close()
 
 
 if __name__ == '__main__':

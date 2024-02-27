@@ -8,7 +8,11 @@ import random
 from PIL import Image
 import cv2
 import imageio
+import csv
 
+
+# Len of each iteration
+len_per_iter = []
 
 class Node:
     """Class to store the RRT graph"""
@@ -25,7 +29,7 @@ node_list = []
 result_images = []
 
 # Generate a random point in the maze
-def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point):
+def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion):
     new_x = random.randint(0, length - 1)#start[1]
     new_y = random.randint(0, height - 1)#start[0]
     if(random.random() > 1 - prob_of_choosing_start):
@@ -34,7 +38,7 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
     if(show_every_attempted_point and image[new_y][new_x][0] == 255):
         im = Image.open(file_name)
         result = im.copy() # result image
-        draw_result(image, result, start, end, node_list)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+        draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
         for x in range(new_x - 3, new_x + 3):
             for y in range(new_y - 3, new_y + 3):
                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
@@ -51,7 +55,7 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
         if(show_every_attempted_point and image[new_y][new_x][0] == 255):
             im = Image.open(file_name)
             result = im.copy() # result image
-            draw_result(image, result, start, end, node_list)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+            draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
             for x in range(new_x - 3, new_x + 3):
                 for y in range(new_y - 3, new_y + 3):
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
@@ -83,7 +87,7 @@ def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_
     return potential_map
 
 # RRT Algorithm
-def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point):
+def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion):
     height = len(image)
     length = len(image[0])
 
@@ -119,18 +123,17 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             return node_list
 
         # Get random point
-        new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point)
+        new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion)
         
-        for _ in range(la_place_each_time):
-            potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
 
         new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
         i = i + len(new_node_list)
         node_list.extend(new_node_list)
+        len_per_iter.append(len(new_node_list))
         # HERE - Drawing image step by step
         im = Image.open(file_name)
         result = im.copy() # result image
-        draw_result(image, result, start, end, node_list)
+        draw_result(image, result, start, end, node_list, potential_map, show_expansion)
         for x in range(new_x - 3, new_x + 3):
             for y in range(new_y - 3, new_y + 3):
                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
@@ -140,6 +143,9 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
         
         if len(new_node_list) != 0 and int(new_x) == start[0] and int(new_y) == start[1]:
             pathFound = True
+        
+        for _ in range(la_place_each_time):
+            potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
     return node_list
 
 def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
@@ -182,9 +188,19 @@ def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
 
 
 
-def draw_result(image, result, start, end, node_list):
+def draw_result(image, result, start, end, node_list, potential_map, show_expansion):
     height = len(image)
     length = len(image[0])
+
+    if show_expansion:
+        for x in range(0, length):
+            for y in range(0, height):
+                if potential_map[y][x] == 1:
+                    toPut =  0
+                    result.putpixel((x, y), (toPut, toPut, toPut))
+                else:
+                    toPut = 250 - int(potential_map[y][x]*225)#200#150
+                    result.putpixel((x, y), (toPut, toPut, toPut))
 
     # Draw all of the nodes in the RRT
     for node in node_list:
@@ -207,6 +223,8 @@ def draw_result(image, result, start, end, node_list):
         for y in range(end[1] - 3, end[1] + 3):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
+    
+
                 
 def main():
     image = input("Enter the name of your image file (include .jpg, .png, etc.): ")
@@ -236,24 +254,31 @@ def main():
     la_place_each_time = int(input('Enter the LaPlace iters after each point explored: '))
     prob_of_choosing_start = float(input('Enter the probability of choosing the start: '))
     show_every_attempted_point = ("y" == input('Enter "y" to show every attempted point in video: '))
-    output_path = input('Enter the desired video file name (include .mp4 at the end, make it descriptive based on the parameters entered): ')
+    show_expansion = ("y" == input('Enter "y" to show every reachable point in video: '))
+    output_path = input('Enter the desired file names (do not include .mp4 or .csv at the end, make it descriptive based on the parameters entered): ')
     fps = int(input('Enter the fps of video (recommended 10 for small videos, 30+ for longer): '))
 
-    node_list = RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point)
+    node_list = RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion)
 
     print("Drawing the result...")
     result = im.copy() 
-    draw_result(image, result, start, end, node_list)
+    height = len(image)
+    length = len(image[0])
+    draw_result(image, result, start, end, node_list, potential_map=np.zeros((height, length)), show_expansion=False)
     im = Image.open(file_name)
     result_images.append(result)
     result.show()
     
-    writer = imageio.get_writer(output_path, fps=fps)
+    writer = imageio.get_writer(output_path + ".mp4", fps=fps)
 
     for image_filename in result_images:
         writer.append_data(np.array(image_filename))
     
     writer.close()
+
+    with open(output_path + '.csv', 'w', newline='') as file:
+        csv_writer = csv.writer(file)
+        csv_writer.writerow(len_per_iter)
 
 
 if __name__ == '__main__':

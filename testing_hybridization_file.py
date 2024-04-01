@@ -1,7 +1,3 @@
-# Implement RRT and RRT*
-
-# Installed VSCode Code Runner extension and checked "Run in Terminal"
-
 import numpy as np 
 import math 
 import random
@@ -10,11 +6,8 @@ import cv2
 import imageio
 import csv
 import time
-
-
-# Len of each iteration
-len_per_iter = []
-time_per_iter = []
+import pandas as pd
+import matplotlib.pyplot as plt
 
 class Node:
     """Class to store the RRT graph"""
@@ -24,14 +17,9 @@ class Node:
         self.parent_x = []
         self.parent_y = []
 
-# Node List
-node_list = []
-
-# Results
-result_images = []
 
 # Generate a random point in the maze
-def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion):
+def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time):
     new_x = random.randint(0, length - 1)#start[1]
     new_y = random.randint(0, height - 1)#start[0]
     # if(random.random() < prob_of_choosing_start): # > 1 - 
@@ -46,12 +34,12 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                     result.putpixel((x, y), (0, 0, 255))
         result_images.append(result)
-    # needToFindNew = False
-    # for node in node_list:
-    #         if(int(node.y) == int(new_y) and int(node.x) == int(new_x)):
-    #             needToFindNew = True
 
     while potential_map[new_y][new_x] == 1: #or needToFindNew
+        len_per_iter.append(0) #this random point added 0 to our tree
+        time_per_iter.append(time.time() - start_time)
+
+
         new_x = random.randint(0, length - 1)
         new_y = random.randint(0, height - 1)
         if(show_every_attempted_point and image[new_y][new_x][0] == 255):
@@ -62,13 +50,7 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
                 for y in range(new_y - 3, new_y + 3):
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                         result.putpixel((x, y), (0, 0, 255))
-            result_images.append(result)
-        # needToFindNew = False
-        # for node in node_list:
-        #     if(int(node.y) == int(new_y) and int(node.x) == int(new_x)):
-        #         needToFindNew = True
-    
-    
+            result_images.append(result) 
     return (new_x, new_y, potential_map)
 
 def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list):
@@ -127,7 +109,7 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             return node_list
 
         # Get random point
-        new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion)
+        new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time)
         
 
         new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
@@ -222,16 +204,12 @@ def draw_result(image, result, start, end, node_list, potential_map, show_expans
     
 
                 
-def main():
-    image = input("Enter the name of your image file (include .jpg, .png, etc.): ")
+def running_hybridization(image, start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps):
     file_name = image
 
     # Get image and convert to 2D array
     im = Image.open(image)
     image = np.asarray(im)
-
-    start = input('Enter your start point in the form of "(x, y)": ')
-    end = input('Enter your end point in the form of "(x, y)": ')
 
     start_comma = start.index(',')
     end_comma = end.index(',')
@@ -243,17 +221,6 @@ def main():
 
     start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
-
-    iterations = int(input('Enter the number of iterations (10000 recommended): '))
-    step_size = int(input('Enter the step size of the RRT (3 recommended): '))
-    la_place_at_start = int(input('Enter the LaPlace iters before randomly selecting points: '))
-    la_place_each_time = int(input('Enter the LaPlace iters after each point explored: '))
-    prob_of_choosing_start = float(input('Enter the probability of choosing the start: '))
-    show_every_attempted_point = ("y" == input('Enter "y" to show every attempted point in video: '))
-    show_expansion = ("y" == input('Enter "y" to show every reachable point in video: '))
-    output_path = input('Enter the desired file names (do not include .mp4 or .csv at the end, make it descriptive based on the parameters entered): ')
-    fps = int(input('Enter the fps of video (recommended 10 for small videos, 30+ for longer): '))
-
     node_list = RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion)
 
     print("Drawing the result...")
@@ -278,5 +245,77 @@ def main():
         csv_writer.writerow(time_per_iter)
 
 
-if __name__ == '__main__':
-    main()
+def csv_to_graph(file):
+    data = pd.read_csv(file + ".csv", header=None)
+
+    values = data.iloc[0].values
+    time = data.iloc[1].values
+
+    # Compute prefix sum
+    prefix_sum = values.cumsum()
+
+    # Plot of each point
+    plt.figure(figsize=(10, 5))
+    plt.subplot(2, 2, 1)  # 1 row, 2 columns, 1st subplot
+    plt.plot(values, marker='o', linestyle=' ')
+    plt.title('Original Values')
+    plt.xlabel('Iterations')
+    plt.ylabel('Length of Branch Added')
+
+    # Plot using prefix sum
+    plt.subplot(2, 2, 2)  # 1 row, 2 columns, 2nd subplot
+    plt.plot(prefix_sum, marker='o', linestyle='-')
+    plt.title('Cumulative Sum')
+    plt.xlabel('Iterations')
+    plt.ylabel('Prefix Sum of Length of Branch Added')
+
+    plt.subplot(2, 2, 3)
+    plt.hist(values, bins=30, alpha=0.5, color='steelblue', edgecolor='black')
+    plt.title('Histogram of Branch Lengths')
+
+    plt.xlabel('Branch Length')
+    plt.ylabel('Frequency')
+
+    plt.subplot(2, 2, 4)
+    plt.plot(time, prefix_sum, marker='o', linestyle='') 
+
+    # Customize the plot
+    plt.title('Time vs Prefix Sum')
+    plt.xlabel('Time')
+    plt.ylabel('Prefix Sum')
+
+    plt.tight_layout()
+    plt.savefig(file + '.png', dpi=300, bbox_inches='tight')  
+
+
+# TESTS BEING RUN:
+
+images_to_test = ["world1", "world2", "world3", "world4", "t_shape", "t_shape_other_way"]
+start = "(1, 1)"
+end = "(650, 350)"
+iterations = 200
+step_size = 3
+laplace_iters_to_test = [50, 100, 200, 300, 500]
+prob_of_choosing_start = 0
+show_every_attempted_point = "y"
+show_expansion = "y"
+fps = 20
+
+for i in range(len(images_to_test)):
+    image = images_to_test[i]
+    for j in range(len(laplace_iters_to_test)):
+        la_place_at_start = laplace_iters_to_test[j]
+        la_place_each_time = laplace_iters_to_test[j]
+        len_per_iter = []
+        time_per_iter = []
+        node_list = []
+        result_images = []
+        output_path = str(image) + "_" + str(la_place_each_time) + "_each_iter"
+        running_hybridization(image + ".png", start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps)
+        csv_to_graph(output_path)
+        print("done with ")
+        print(output_path)
+
+
+
+

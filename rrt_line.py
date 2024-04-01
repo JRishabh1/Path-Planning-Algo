@@ -112,6 +112,7 @@ def RRT(image, start, end, iterations, step_size, node_list):
 
         if(total_iter == iterations):
             print("Iteration limit exceeded.")
+            return node_list[i - 1].parent_x, node_list[i - 1].parent_y, i - 1
             break
 
         # Get random point

@@ -18,39 +18,40 @@ class Node:
         self.parent_y = []
 
 
-# Generate a random point in the maze
+# Generate a random point along the edges
 def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time):
-    new_x = random.randint(0, length - 1)#start[1]
-    new_y = random.randint(0, height - 1)#start[0]
-    # if(random.random() < prob_of_choosing_start): # > 1 - 
-    #     new_x = start[1]
-    #     new_y = start[0]
-    if(show_every_attempted_point and image[new_y][new_x][0] == 255):
-        im = Image.open(file_name)
-        result = im.copy() # result image
-        draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
-        for x in range(new_x - 3, new_x + 3):
-            for y in range(new_y - 3, new_y + 3):
-                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                    result.putpixel((x, y), (0, 0, 255))
-        result_images.append(result)
+    
+    # new_x = random.randint(0, length - 1)#start[1]
+    # new_y = random.randint(0, height - 1)#start[0]
+    # # if(random.random() < prob_of_choosing_start): # > 1 - 
+    # #     new_x = start[1]
+    # #     new_y = start[0]
+    # if(show_every_attempted_point and image[new_y][new_x][0] == 255):
+    #     im = Image.open(file_name)
+    #     result = im.copy() # result image
+    #     draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+    #     for x in range(new_x - 3, new_x + 3):
+    #         for y in range(new_y - 3, new_y + 3):
+    #             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+    #                 result.putpixel((x, y), (0, 0, 255))
+    #     result_images.append(result)
 
-    while potential_map[new_y][new_x] == 1: #or needToFindNew
-        len_per_iter.append(0) #this random point added 0 to our tree
-        time_per_iter.append(time.time() - start_time)
+    # while potential_map[new_y][new_x] == 1: #or needToFindNew
+    #     len_per_iter.append(0) #this random point added 0 to our tree
+    #     time_per_iter.append(time.time() - start_time)
 
 
-        new_x = random.randint(0, length - 1)
-        new_y = random.randint(0, height - 1)
-        if(show_every_attempted_point and image[new_y][new_x][0] == 255):
-            im = Image.open(file_name)
-            result = im.copy() # result image
-            draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
-            for x in range(new_x - 3, new_x + 3):
-                for y in range(new_y - 3, new_y + 3):
-                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                        result.putpixel((x, y), (0, 0, 255))
-            result_images.append(result) 
+    #     new_x = random.randint(0, length - 1)
+    #     new_y = random.randint(0, height - 1)
+    #     if(show_every_attempted_point and image[new_y][new_x][0] == 255):
+    #         im = Image.open(file_name)
+    #         result = im.copy() # result image
+    #         draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+    #         for x in range(new_x - 3, new_x + 3):
+    #             for y in range(new_y - 3, new_y + 3):
+    #                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+    #                     result.putpixel((x, y), (0, 0, 255))
+    #         result_images.append(result) 
     return (new_x, new_y, potential_map)
 
 def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list):

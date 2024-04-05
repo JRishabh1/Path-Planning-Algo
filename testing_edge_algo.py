@@ -20,7 +20,58 @@ class Node:
 
 # Generate a random point along the edges
 def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time):
+    # kernel = np.array([[1, 4, 1],
+    #                    [4, -20, 4],
+    #                    [1, 4, 1]])
+    # new_grid = cv2.filter2D(potential_map, -1, kernel)
+    # poss_points = []
+    # for x in range(length - 1):
+    #     for y in range(height - 1):
+    #         if new_grid[y][x] != 0 and image[y][x][0] != 255 and potential_map[y][x] != 1:
+    #             poss_points.append([y, x])
+    # Step 1: Smooth the potential map
     
+    # smoothed_map = cv2.GaussianBlur(subtract_one, (5, 5), 0)
+
+    # Step 2: Apply the Laplacian
+    
+
+    # Step 3: Thresholding to identify edges
+    # threshold_value = 0.00001#0.00001#0.0001  # This is a parameter you might need to adjust
+    # _, edges = cv2.threshold(np.abs(laplacian), threshold_value, 1, cv2.THRESH_BINARY)
+
+    # Step 4: Find Edge Points
+    # edge_points = np.argwhere(edges > 0)
+    subtract_one = np.copy(potential_map)
+    for x in range(0, len(subtract_one)):
+        for y in range(0, len(subtract_one[x])):
+            if(subtract_one[x][y] == 1):
+                subtract_one[x][y] = 0
+            else:
+                subtract_one[x][y] = 255
+    laplacian = cv2.Laplacian(subtract_one, cv2.CV_64F)
+    _, edges = cv2.threshold(np.abs(laplacian), 1, 255, cv2.THRESH_BINARY)
+
+    edge_points = np.argwhere(edges > 0)
+    
+    print(len(edge_points))
+
+    len_per_iter.append(0) 
+
+
+    time_per_iter.append(time.time() - start_time)
+
+
+    [new_y, new_x] = edge_points[random.randint(0, len(edge_points)-1)]
+    if(show_every_attempted_point and image[new_y][new_x][0] == 255 and new_y < height - 2 and new_x < length - 2):
+        im = Image.open(file_name)
+        result = im.copy() # result image
+        draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+        for x in range(new_x - 3, new_x + 3):
+            for y in range(new_y - 3, new_y + 3):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (0, 0, 255))
+        result_images.append(result)
     # new_x = random.randint(0, length - 1)#start[1]
     # new_y = random.randint(0, height - 1)#start[0]
     # # if(random.random() < prob_of_choosing_start): # > 1 - 
@@ -148,8 +199,15 @@ def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
         if limit > 1000:
             # print("Couldn't find - Stuck :(") - if there is a meaningful gradient from the first point, should never hit this
             return []
-        gradr = potential_map[round(poser+1)][round(posec)] - potential_map[round(poser-1)][round(posec)]
-        gradc = potential_map[round(poser)][round(posec+1)] - potential_map[round(poser)][round(posec-1)]
+        
+        # gradr = potential_map[round(poser+1)][round(posec)] - potential_map[round(poser-1)][round(posec)]
+        # gradc = potential_map[round(poser)][round(posec+1)] - potential_map[round(poser)][round(posec-1)]
+        if 0 < poser < potential_map.shape[0]-1 and 0 < posec < potential_map.shape[1]-1:
+            gradr = potential_map[int(poser+1)][int(posec)] - potential_map[int(poser-1)][int(posec)]
+            gradc = potential_map[int(poser)][int(posec+1)] - potential_map[int(poser)][int(posec-1)]
+        else:
+            # Avoid calculations that would go out of bounds
+            return []
         maggrad = math.sqrt(gradr**2 + gradc**2)
 
         if(maggrad != 0):
@@ -291,16 +349,16 @@ def csv_to_graph(file):
 
 # TESTS BEING RUN:
 
-images_to_test = ["world1", "world2", "world3", "world4", "t_shape", "t_shape_other_way"]
+images_to_test = ["world4"]# images_to_test = ["world1", "world2", "world3", "world4", "t_shape", "t_shape_other_way"]
 start = "(1, 1)"
 end = "(650, 350)"
-iterations = 200
+iterations = 50#200
 step_size = 3
-laplace_iters_to_test = [50, 100, 200, 300, 500]
+laplace_iters_to_test = [50]#[50, 100, 200, 300, 500]
 prob_of_choosing_start = 0
 show_every_attempted_point = "y"
 show_expansion = "y"
-fps = 20
+fps = 1 #20
 
 for i in range(len(images_to_test)):
     image = images_to_test[i]

@@ -18,57 +18,14 @@ class Node:
         self.parent_y = []
 
 
-# Generate a random point along the edges
+# Generate a random point in the maze
 def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time):
-    # kernel = np.array([[1, 4, 1],
-    #                    [4, -20, 4],
-    #                    [1, 4, 1]])
-    # new_grid = cv2.filter2D(potential_map, -1, kernel)
-    # poss_points = []
-    # for x in range(length - 1):
-    #     for y in range(height - 1):
-    #         if new_grid[y][x] != 0 and image[y][x][0] != 255 and potential_map[y][x] != 1:
-    #             poss_points.append([y, x])
-    # Step 1: Smooth the potential map
-    
-    # smoothed_map = cv2.GaussianBlur(subtract_one, (5, 5), 0)
-
-    # Step 2: Apply the Laplacian
-    
-
-    # Step 3: Thresholding to identify edges
-    # threshold_value = 0.00001#0.00001#0.0001  # This is a parameter you might need to adjust
-    # _, edges = cv2.threshold(np.abs(laplacian), threshold_value, 1, cv2.THRESH_BINARY)
-
-    # Step 4: Find Edge Points
-    # edge_points = np.argwhere(edges > 0)
-    potential_map_as_image = np.copy(potential_map)
-    for x in range(0, len(potential_map_as_image)):
-        for y in range(0, len(potential_map_as_image[x])):
-            if(potential_map_as_image[x][y] == 1 or potential_map_as_image[x][y] < 0.99 ):
-                potential_map_as_image[x][y] = 0
-            else:
-                potential_map_as_image[x][y] = 1# 255  - int(potential_map[x][y]*225)
-    laplacian = cv2.Laplacian(potential_map_as_image, cv2.CV_64F)
-    _, edges = cv2.threshold(np.abs(laplacian), 0, 1, cv2.THRESH_BINARY)
-    # _, edges = cv2.threshold(np.abs(laplacian), 30.1, 30.2, cv2.THRESH_BINARY)
-    edge_points = np.argwhere(edges > 0)
-    # cv2.imshow('Edges', edges)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    # print(len(edge_points))
-    if(len(edge_points) == 0):
-        return (-1, -1, potential_map)
-
-    len_per_iter.append(0) 
-
-
-    time_per_iter.append(time.time() - start_time)
-
-
-    [new_y, new_x] = edge_points[random.randint(0, len(edge_points)-1)]
-    if(show_every_attempted_point and image[new_y][new_x][0] == 255 and new_y < height - 2 and new_x < length - 2):
+    new_x = random.randint(0, length - 1)#start[1]
+    new_y = random.randint(0, height - 1)#start[0]
+    # if(random.random() < prob_of_choosing_start): # > 1 - 
+    #     new_x = start[1]
+    #     new_y = start[0]
+    if(show_every_attempted_point and image[new_y][new_x][0] == 255):
         im = Image.open(file_name)
         result = im.copy() # result image
         draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
@@ -77,37 +34,23 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                     result.putpixel((x, y), (0, 0, 255))
         result_images.append(result)
-    # new_x = random.randint(0, length - 1)#start[1]
-    # new_y = random.randint(0, height - 1)#start[0]
-    # # if(random.random() < prob_of_choosing_start): # > 1 - 
-    # #     new_x = start[1]
-    # #     new_y = start[0]
-    # if(show_every_attempted_point and image[new_y][new_x][0] == 255):
-    #     im = Image.open(file_name)
-    #     result = im.copy() # result image
-    #     draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
-    #     for x in range(new_x - 3, new_x + 3):
-    #         for y in range(new_y - 3, new_y + 3):
-    #             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-    #                 result.putpixel((x, y), (0, 0, 255))
-    #     result_images.append(result)
 
-    # while potential_map[new_y][new_x] == 1: #or needToFindNew
-    #     len_per_iter.append(0) #this random point added 0 to our tree
-    #     time_per_iter.append(time.time() - start_time)
+    while potential_map[new_y][new_x] == 1: #or needToFindNew
+        len_per_iter.append(0) #this random point added 0 to our tree
+        time_per_iter.append(time.time() - start_time)
 
 
-    #     new_x = random.randint(0, length - 1)
-    #     new_y = random.randint(0, height - 1)
-    #     if(show_every_attempted_point and image[new_y][new_x][0] == 255):
-    #         im = Image.open(file_name)
-    #         result = im.copy() # result image
-    #         draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
-    #         for x in range(new_x - 3, new_x + 3):
-    #             for y in range(new_y - 3, new_y + 3):
-    #                 if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-    #                     result.putpixel((x, y), (0, 0, 255))
-    #         result_images.append(result) 
+        new_x = random.randint(0, length - 1)
+        new_y = random.randint(0, height - 1)
+        if(show_every_attempted_point and image[new_y][new_x][0] == 255):
+            im = Image.open(file_name)
+            result = im.copy() # result image
+            draw_result(image, result, start, end, node_list, potential_map, show_expansion)#draw_result(image, result, start, end, parent_x_array, parent_y_array)
+            for x in range(new_x - 3, new_x + 3):
+                for y in range(new_y - 3, new_y + 3):
+                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                        result.putpixel((x, y), (0, 0, 255))
+            result_images.append(result) 
     return (new_x, new_y, potential_map)
 
 def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list):
@@ -128,7 +71,7 @@ def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_
     return potential_map
 
 # RRT Algorithm
-def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion, branches_before_each_laplace):
+def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion):
     height = len(image)
     length = len(image[0])
 
@@ -166,30 +109,27 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             return node_list
 
         # Get random point
-        for _ in range(branches_before_each_laplace):
-            new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time)
-            if (new_x == -1):
-                return node_list
-            
+        new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time)
+        
 
-            new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
-            i = i + len(new_node_list)
-            node_list.extend(new_node_list)
-            len_per_iter.append(len(new_node_list))
-            time_per_iter.append(time.time() - start_time)
-            # HERE - Drawing image step by step
-            im = Image.open(file_name)
-            result = im.copy() # result image
-            draw_result(image, result, start, end, node_list, potential_map, show_expansion)
-            for x in range(new_x - 3, new_x + 3):
-                for y in range(new_y - 3, new_y + 3):
-                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                        result.putpixel((x, y), (0, 255, 255))
-            result_images.append(result)
-            #TO HERE
-            
-            # if len(new_node_list) != 0 and int(new_x) == start[0] and int(new_y) == start[1]:
-            #     pathFound = True
+        new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
+        i = i + len(new_node_list)
+        node_list.extend(new_node_list)
+        len_per_iter.append(len(new_node_list))
+        time_per_iter.append(time.time() - start_time)
+        # HERE - Drawing image step by step
+        im = Image.open(file_name)
+        result = im.copy() # result image
+        draw_result(image, result, start, end, node_list, potential_map, show_expansion)
+        for x in range(new_x - 3, new_x + 3):
+            for y in range(new_y - 3, new_y + 3):
+                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                    result.putpixel((x, y), (0, 255, 255))
+        result_images.append(result)
+        #TO HERE
+        
+        if len(new_node_list) != 0 and int(new_x) == start[0] and int(new_y) == start[1]:
+            pathFound = True
         
         for _ in range(la_place_each_time):
             potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
@@ -207,15 +147,8 @@ def try_grad_descent(potential_map, step_size, new_x, new_y, node_list):
         if limit > 1000:
             # print("Couldn't find - Stuck :(") - if there is a meaningful gradient from the first point, should never hit this
             return []
-        
-        # gradr = potential_map[round(poser+1)][round(posec)] - potential_map[round(poser-1)][round(posec)]
-        # gradc = potential_map[round(poser)][round(posec+1)] - potential_map[round(poser)][round(posec-1)]
-        if 0 < poser < potential_map.shape[0]-1 and 0 < posec < potential_map.shape[1]-1:
-            gradr = potential_map[int(poser+1)][int(posec)] - potential_map[int(poser-1)][int(posec)]
-            gradc = potential_map[int(poser)][int(posec+1)] - potential_map[int(poser)][int(posec-1)]
-        else:
-            # Avoid calculations that would go out of bounds
-            return []
+        gradr = potential_map[round(poser+1)][round(posec)] - potential_map[round(poser-1)][round(posec)]
+        gradc = potential_map[round(poser)][round(posec+1)] - potential_map[round(poser)][round(posec-1)]
         maggrad = math.sqrt(gradr**2 + gradc**2)
 
         if(maggrad != 0):
@@ -271,7 +204,7 @@ def draw_result(image, result, start, end, node_list, potential_map, show_expans
     
 
                 
-def running_hybridization(image, start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps, branches_before_each_laplace):
+def running_hybridization(image, start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps):
     file_name = image
 
     # Get image and convert to 2D array
@@ -288,7 +221,7 @@ def running_hybridization(image, start, end, iterations, step_size, la_place_at_
 
     start = (start_first_number, start_second_number)
     end = (end_first_number, end_second_number)
-    node_list = RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion, branches_before_each_laplace)
+    node_list = RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_start, la_place_at_start, la_place_each_time, show_every_attempted_point, show_expansion)
 
     print("Drawing the result...")
     result = im.copy() 
@@ -363,7 +296,6 @@ end = "(650, 350)"
 iterations = 200
 step_size = 3
 laplace_iters_to_test = [50, 100, 200, 300, 500]
-branches_before_each_laplace = [1, 5, 10]
 prob_of_choosing_start = 0
 show_every_attempted_point = "y"
 show_expansion = "y"
@@ -372,19 +304,17 @@ fps = 20
 for i in range(len(images_to_test)):
     image = images_to_test[i]
     for j in range(len(laplace_iters_to_test)):
-        for k in range(len(branches_before_each_laplace)):
-            la_place_at_start = laplace_iters_to_test[j]
-            la_place_each_time = laplace_iters_to_test[j]
-            branch_each_time = branches_before_each_laplace[k]
-            len_per_iter = []
-            time_per_iter = []
-            node_list = []
-            result_images = []
-            output_path = str(image) + "_" + str(la_place_each_time) + "laplace_" + str(branch_each_time) + "branches_each_iter"
-            running_hybridization(image + ".png", start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps, branch_each_time)
-            csv_to_graph(output_path)
-            print("done with ")
-            print(output_path)
+        la_place_at_start = laplace_iters_to_test[j]
+        la_place_each_time = laplace_iters_to_test[j]
+        len_per_iter = []
+        time_per_iter = []
+        node_list = []
+        result_images = []
+        output_path = str(image) + "_" + str(la_place_each_time) + "_each_iter"
+        running_hybridization(image + ".png", start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps)
+        csv_to_graph(output_path)
+        print("done with ")
+        print(output_path)
 
 
 

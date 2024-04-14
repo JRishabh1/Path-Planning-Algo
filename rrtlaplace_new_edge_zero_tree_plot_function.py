@@ -154,7 +154,7 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
         for b in range(len(boundary)):
             videoResult.putpixel((boundary[b].x, boundary[b].y), (0, 0, 127))
 
-        draw_result(image, node_list, videoResult, end, step_size)
+        draw_result(image, node_list, videoResult, end, step_size, potential_map)
         
 
         for stuff in range(bpl):
@@ -206,7 +206,7 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
                     # Put image in video
                     vResult = videoResult.copy()
                     
-                    draw_result(image, new_node_list, vResult, end, step_size)
+                    draw_result(image, new_node_list, vResult, end, step_size, potential_map)
                     for x in range(round(posec) - 2, round(posec) + 2):
                         for y in range(round(poser) - 2, round(poser) + 2):
                             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
@@ -241,7 +241,7 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
         
 
 # Draw the nodes and the path
-def draw_result(image, node_list, result, end, step_size):
+def draw_result(image, node_list, result, end, step_size, potential_map):
     height = len(image)
     length = len(image[0])
 
@@ -260,14 +260,17 @@ def draw_result(image, node_list, result, end, step_size):
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                         result.putpixel((x, y), (255, 0, 0))
 
-    # Draw the end point
-    for x in range(end[0] - 3, end[0] + 3):
-        for y in range(end[1] - 3, end[1] + 3):
-            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                result.putpixel((x, y), (0, 0, 255))
 
-    # print(height, length, end)
+    for x in range(0, length):
+        for y in range(0, height):
+            if potential_map[y][x] == 1:
+                toPut =  0
+                result.putpixel((x, y), (toPut, toPut, toPut))
+            else:
+                toPut = 250 - int(potential_map[y][x]*225)#200#150
+                result.putpixel((x, y), (toPut, toPut, toPut))
 
+    
 
 def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterations, step_size, output_folder, output_path, 
                fps, output_image, output_plot, data_file, parameter_file, bpl):
@@ -326,11 +329,11 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
                 boundary.append(Node(x, y))
 
 
-    parent_array = RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, 
+    RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, 
                        file_name, scaleDownFactor, startTime, result_images, times, distances, bpl)
 
     result = im.copy() # result image
-    draw_result(image, node_list, result, end, step_size)
+    draw_result(image, node_list, result, end, step_size, potential_map)
 
     result = result.resize((w, h)) # make image large again
     result_images.append(result)

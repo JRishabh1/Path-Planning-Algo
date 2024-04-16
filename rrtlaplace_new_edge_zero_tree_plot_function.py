@@ -260,16 +260,6 @@ def draw_result(image, node_list, result, end, step_size, potential_map):
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                         result.putpixel((x, y), (255, 0, 0))
 
-
-    for x in range(0, length):
-        for y in range(0, height):
-            if potential_map[y][x] == 1:
-                toPut =  0
-                result.putpixel((x, y), (toPut, toPut, toPut))
-            else:
-                toPut = 250 - int(potential_map[y][x]*225)#200#150
-                result.putpixel((x, y), (toPut, toPut, toPut))
-
     
 
 def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterations, step_size, output_folder, output_path, 
@@ -463,22 +453,22 @@ def main():
     # RRTIterations = [int(100), int(200), int(300), int(400), int(500)]
     # laplaceIterations = [int(100), int(200), int(400)]
     images = ['world3']
-    RRTIterations = [int(100)]
+    RRTIterations = [int(20)]
     laplaceIterations = [int(20)]
 
     # scaleDownFactor = int(2)
     # end = '(310, 178)'
     # scaleDownFactor = int(4)
     # end = '(155, 89)'
-    scaleDownFactor = int(8)
-    end = '(78, 45)'
+    scaleDownFactor = int(1)
+    end = '(650, 350)'
 
     step_size = int(1)
-    output_folder = 'apr8_extra'
+    output_folder = 'april_13th'
 
     fps = int(120)
 
-    bpl = [int(16)]
+    bpl = [int(1)]
 
     
     number = 1

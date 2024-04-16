@@ -1,0 +1,16 @@
+Enter the name of your image file (include .jpg, .png, etc.): world3.png
+Dimensions of image: 683 pixels by 384 pixels!
+Input the factor for scaling down the image (4 recommended): 8
+Dimensions of scaled image: 85 pixels by 48 pixels!
+Enter your start point (unit: pixel) in the form of "(x, y)": (78, 45)
+Enter the number of RRT iterations (10000 recommended): 100
+Enter the number of Laplace equation iterations (250 recommended): 20
+Enter the step size of the RRT (3 recommended): 1
+Enter the name of the output folder: april_13th
+Enter the desired video file name (include .mp4 at the end, make it descriptive based on the parameters entered): vid_ye_world3_rrt100_lap20_bql16.mp4
+Enter the fps of video (recommended 10 for small videos, 30+ for longer): 120
+Enter the output tree image file (include .png at the end): res_ye_world3_rrt100_lap20_bql16.png
+Enter the output plot image file (include .png at the end): plot_ye_world3_rrt100_lap20_bql16.png
+Enter the desired data file (include .csv at the end): data_ye_world3_rrt100_lap20_bql16.csv
+Iteration limit exceeded.
+Total Time: This took 8.231 seconds!

@@ -25,7 +25,7 @@ graddescenttimearray = []
 # Generate a random point along the edges
 def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time, visualization):
     potential_map_as_image = np.uint8(255 * potential_map)  
-    potential_map_as_image[(potential_map_as_image == 255) | (potential_map_as_image < 250)] = 0
+    potential_map_as_image[(potential_map_as_image == 255) | (potential_map_as_image < 254)] = 0
     potential_map_as_image[potential_map_as_image != 0] = 255
     edge = cv2.Canny(potential_map_as_image, 50, 150)
     edge_points = np.argwhere(edge > 0)
@@ -276,7 +276,7 @@ def running_hybridization(image, start, end, iterations, step_size, la_place_at_
     end_time = time.time()
     timesarray.append(end_time - timer)
     testarray.append(output_path)
-    print(output_path, " took ", str(end_time - timer), " seconds")
+    print(output_path, " took ", str(end_time - timer), " seconds with ", laplacetimearray[len(laplacetimearray) - 1], " laplace time ",randompointtimearray[len(randompointtimearray) - 1], " random poin with image segtime ", graddescenttimearray[len(graddescenttimearray) - 1], " grad descent time")
 
 
 def csv_to_graph(file):
@@ -352,12 +352,12 @@ for i in range(len(images_to_test)):
             running_hybridization(image + ".png", start, end, iterations, step_size, la_place_at_start, la_place_each_time, prob_of_choosing_start, show_every_attempted_point, show_expansion, output_path, fps, branch_each_time, visualition)
             if visualition:
                 csv_to_graph(output_path)
-            print("done with ")
-            print(output_path)
+            # print("done with ")
+            # print(output_path)
 
 
 
-with open('compiling_times_without_drawing.csv', 'w', newline='') as file:
+with open('compile_times_without_drawing.csv', 'w', newline='') as file:
     csv_writer = csv.writer(file)
     csv_writer.writerow(['Test Name'] + testarray)
     csv_writer.writerow(['Total Time'] + timesarray)

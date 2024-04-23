@@ -56,21 +56,45 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
             result_images.append(result)
     return (new_x, new_y, potential_map)
 
-def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list):
+def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list, height_always, length_always, node_list_shape):
     potential_map = cv2.filter2D(potential_map, -1, kernel)
 
     # Reset boundary points
     potential_map[end[1]][end[0]] = 0 # Goal
-    for node in node_list:
-        potential_map[min(int(node.y), height - 1)][min(int(node.x), length - 1)] = 0
-    for b in range(len(boundary_y)):
-        potential_map[boundary_y[b]][boundary_x[b]] = 1
-    for y in range(height):
-        potential_map[y][0] = 1
-        potential_map[y][length-1] = 1
-    for x in range(length):
-        potential_map[0][x] = 1
-        potential_map[height-1][x] = 1
+    # potential_map[node_list] = 0
+    # for node in node_list:
+    #     potential_map[min(int(node.y), height - 1)][min(int(node.x), length - 1)] = 0
+    # for b in range(len(boundary_y)):
+    #     potential_map[boundary_y[b]][boundary_x[b]] = 1
+    # for y in range(height):
+    #     potential_map[y][0] = 1
+    #     potential_map[y][length-1] = 1
+    # for x in range(length):
+    #     potential_map[0][x] = 1
+    #     potential_map[height-1][x] = 1
+    # node_y = np.clip(np.array([int(node.y) for node in node_list]), 0, height - 1)
+    # node_x = np.clip(np.array([int(node.x) for node in node_list]), 0, length - 1)
+    
+    # Set the nodes to 0 in potential_map
+    # potential_map[node_y, node_x] = 0
+
+    potential_map[node_list_shape] = 0
+
+    # Assuming boundary_x and boundary_y are numpy arrays of indices
+    # Directly set the boundary points to 1 in potential_map
+    potential_map[boundary_y, boundary_x] = 1
+    # height_always = potential_map.shape[0]
+    # length_always = potential_map.shape[1]
+
+    # Set the first and last columns to 1
+    # potential_map[:, 0] = 1
+    # potential_map[:, length_always - 1] = 1
+
+    # # Set the first and last rows to 1
+    # potential_map[0, :] = 1
+    # potential_map[height_always - 1, :] = 1
+    potential_map[:, [0, -1]] = 1
+    potential_map[[0, -1], :] = 1
     return potential_map
 
 # RRT Algorithm
@@ -87,6 +111,7 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
     pathFound = False
 
     potential_map = np.ones((height, length))
+    node_list_shape = np.zeros((height, length), dtype=bool)
     potential_map[end[1]][end[0]] = 0 
     boundary_x = []
     boundary_y = []
@@ -106,8 +131,10 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
     graddescenttime = 0
     
     start_time = time.time()
+    height_always = potential_map.shape[0]
+    length_always = potential_map.shape[1]
     for _ in range(la_place_at_start):
-        potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
+        potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list, height_always, length_always,node_list_shape)
     laplacetime += time.time() - start_time
     while pathFound == False:
         total_iter = total_iter + 1
@@ -132,6 +159,8 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             
             othertime = time.time()
             new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
+            for node in new_node_list:
+                node_list_shape[int(node.y), int(node.x)] = True
             graddescenttime += time.time() - othertime
             i = i + len(new_node_list)
             node_list.extend(new_node_list)
@@ -153,7 +182,7 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             #     pathFound = True
         sometime = time.time()
         for _ in range(la_place_each_time):
-            potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list)
+            potential_map = LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list, height_always, length_always, node_list_shape)
         laplacetime += time.time() - sometime
     # return node_list
 
@@ -357,7 +386,7 @@ for i in range(len(images_to_test)):
 
 
 
-with open('compile_times_without_drawing.csv', 'w', newline='') as file:
+with open('april_24_times_compiled.csv', 'w', newline='') as file:
     csv_writer = csv.writer(file)
     csv_writer.writerow(['Test Name'] + testarray)
     csv_writer.writerow(['Total Time'] + timesarray)

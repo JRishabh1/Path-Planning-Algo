@@ -700,6 +700,13 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
     zero_tree[end[1]][end[0]] = 1
 
 
+    new_zero_tree = torch.tensor(zero_tree, dtype=torch.float32)
+    new_zero_tree = new_zero_tree.cuda()
+    new_map_boundary = torch.tensor(map_boundary, dtype=torch.float32)
+    new_map_boundary = new_map_boundary.cuda()
+    new_boundary = torch.tensor(boundary, dtype=torch.float32)
+    new_boundary = new_boundary.cuda()
+
     total_iter = 0
     while True:
 
@@ -728,9 +735,9 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
 
             # map = map.cpu().numpy()
 
-            map[zero_tree == 1] = 0
-            map[boundary == 1] = 1
-            map[map_boundary == 1] = 1
+            map[new_zero_tree == 1] = 0
+            map[new_boundary == 1] = 1
+            map[new_map_boundary == 1] = 1
 
             # MAKE SURE THESE VARIABLES ARE SET ON GPU LATER
 

@@ -111,6 +111,9 @@
 #     zero_tree = np.zeros((ph, pw))
 #     zero_tree[end[1]][end[0]] = 1
 
+#     new_zero_tree = cp.asarray(zero_tree)
+#     new_map_boundary = cp.asarray(map_boundary)
+#     new_boundary = cp.asarray(boundary)
 
 #     total_iter = 0
 #     while True:
@@ -138,9 +141,9 @@
 
 #             temporary_time += (m2 - m1)
 
-#             map[zero_tree == 1] = 0
-#             map[boundary == 1] = 1
-#             map[map_boundary == 1] = 1
+#             map[new_zero_tree == 1] = 0
+#             map[new_boundary == 1] = 1
+#             map[new_map_boundary == 1] = 1
 
 
 
@@ -686,6 +689,10 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
     zero_tree = np.zeros((ph, pw))
     zero_tree[end[1]][end[0]] = 1
 
+    new_zero_tree = cp.asarray(zero_tree)
+    new_map_boundary = cp.asarray(map_boundary)
+    new_boundary = cp.asarray(boundary)
+
 
     total_iter = 0
     while True:
@@ -702,7 +709,6 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
         temporary_time = 0
 
 
-
         for j in range(laplaceIterations):
             # use pytorch or cupy for this
             m1 = timer()
@@ -711,9 +717,9 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
 
             # map = cp.asnumpy(map)
 
-            map[zero_tree == 1] = 0
-            map[boundary == 1] = 1
-            map[map_boundary == 1] = 1
+            map[new_zero_tree == 1] = 0
+            map[new_boundary == 1] = 1
+            map[new_map_boundary == 1] = 1
 
             # MAKE SURE TO SET THESE PRECOMPUTED VARIABLES ON THE GPU!!
 

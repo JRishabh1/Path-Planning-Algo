@@ -1,9 +1,3 @@
-# Implement RRT and RRT*
-
-# JUST PULL THEIR CODE LATER!!!
-
-# Installed VSCode Code Runner extension and checked "Run in Terminal"
-
 import numpy as np # NumPy
 import math # Math
 import random # Random
@@ -14,17 +8,8 @@ import imageio
 import matplotlib.pyplot as plt
 from itertools import accumulate
 
-# Look at CuPy and PyTorch
 
-
-# Ideas for GPU Acceleration:
-# 1. Use CuPy library (like NumPy/SciPy but for GPUs)
-    # a. This is not only faster for convolutions, but also for other NumPy stuff I think
-    # b. https://www.geeksforgeeks.org/python-cupy/
-# 2. Nvidia cuDNN library
-# 3. PyTorch
-
-
+# Node Class
 class Node:
     """Class to store the RRT graph"""
     def __init__(self, x, y):
@@ -35,37 +20,24 @@ class Node:
 
 
 # Generate a random point in the maze
-def random_point(image, height, length, edges):
+def random_point(image, height, length, edges, extra_boundary):
     check = True
     new_x = -1
     new_y = -1
 
     while check:
-        if len(edges) == 0:
+        if len(edges) == 0: # maybe the issue is this stop condition
             new_x = random.randint(1, length - 2)
             new_y = random.randint(1, height - 2)
-
         else:
             node = random.choice(edges)
-            # new_x = node.x
-            # new_y = node.y
-            new_x = node[1] + 4
-            new_y = node[0] + 4
+            new_x = node[1]
+            new_y = node[0]
             
-
-            if new_x <= 3 or new_x >= length-3:
-                if new_y <= 3 or new_y >= height-3:
-                    new_x = random.randint(1, length - 2)
-                    new_y = random.randint(1, height - 2)
-
         # If the pixel is black
-        check = False
-        for i in range(-2, 3):
-            for j in range(-2, 3):
-                if i + new_y >= 0 and i + new_y < height and j + new_x >= 0 and j + new_x < length:
-                    if(image[i+new_y][j+new_x][0] <= 10):
-                        check = True
-    
+        if extra_boundary[new_y][new_x] == 0:
+            check = False
+
     return (new_x, new_y)
 
 # Return the distance and angle between the new point and nearest node
@@ -75,17 +47,17 @@ def dist_and_angle(x1, y1, x2, y2):
     return (dist, angle)
 
 # RRT Algorithm
-def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, file_name, scaleDownFactor, start_time, result_images, times, distances, bpl, no_draw, w, h, result_edges):
+def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTIterations, laplaceIterations, step_size, file_name, scaleDownFactor, start_time, result_images, times, distances, bpl, no_draw, w, h, result_edges):
 
     # Constants
     ph, pw = potential_map.shape
     map_boundary = np.zeros((ph, pw))
-    for y in range(ph):
-        map_boundary[y][0] = 1
-        map_boundary[y][pw-1] = 1
-    for x in range(pw):
-        map_boundary[0][x] = 1
-        map_boundary[ph-1][x] = 1
+    map_boundary[:, [0, -1]] = 1
+    map_boundary[[0, -1], :] = 1
+
+    map_explored = False
+    exploring_iterations = 0
+
 
     # Times for Each Operation
     laplace_time = 0
@@ -137,36 +109,62 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
         new_map = np.uint8(new_map)
        
         # Go from PIL to CV2
-        edge = cv2.Canny(new_map, 50, 150) 
+        edge = cv2.Canny(new_map, 240, 250) # 50, 150
         
         # Go from CV2 to PIL
         edge = Image.fromarray(cv2.cvtColor(edge, cv2.COLOR_BGR2RGB))
 
+
+        tm1 = timer()
         
         if no_draw == False:
-            bh, bw = boundary.shape
+            drawing_edge = edge.copy()
+
+            bh, bw = extra_boundary.shape
             for by in range(bh):
                 for bx in range(bw):
-                    if(boundary[by][bx] == 1):
-                        edge.putpixel((bx, by), (0, 0, 127))
+                    draw_check = False
+                    # print(edge.getpixel((bx, by)))
+                    if drawing_edge.getpixel((bx, by)) == (255, 255, 255):
+                        draw_check = True
 
-            result_edges.append(edge)
+                    extra_check = False
+                    if(extra_boundary[by][bx] >= 1):
+                        drawing_edge.putpixel((bx, by), (0, 127, 0))
+                        extra_check = True
+
+                    if(boundary[by][bx] == 1):
+                        drawing_edge.putpixel((bx, by), (0, 0, 127))
+
+                    if draw_check == True:
+                        if extra_check == True:
+                            drawing_edge.putpixel((bx, by), (127, 0, 0))
+                        else:
+                            drawing_edge.putpixel((bx, by), (255, 255, 255))
+                        
+            # video_edge = drawing_edge.crop((2, 2, ewidth-3, eheight-3)) 
+            result_edges.append(drawing_edge)
+
+        tm2 = timer()
 
             
         # Convert to grayscale image
         new_edge = ImageOps.grayscale(edge)
 
-        # Crop image to avoid boundary edges
-        ewidth, eheight = new_edge.size
-        new_edge = new_edge.crop((2, 2, ewidth-3, eheight-3)) 
-
         # Get array of edges
         edgeArray = np.asarray(new_edge)
-        edges = np.argwhere(edgeArray >= 250)
+        
+        edges = np.argwhere(edgeArray - extra_boundary == 255)
 
         m2 = timer()
 
         edge_detection_time += (m2 - m1)
+        edge_detection_time -= (tm2 - tm1)
+
+        if len(edges) == 0 and map_explored == False:
+            print("It took " + str(total_iter) + " RRT iterations to explore the whole map!")
+            exploring_iterations = total_iter
+            map_explored = True
 
 
         # Drawing
@@ -217,11 +215,11 @@ def RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIt
 
             if(total_iter >= RRTIterations):
                 print("Iteration limit exceeded.")
-                return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time]
+                return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
                 # break
 
             # Get random point
-            new_x, new_y = random_point(image, height, length, edges)
+            new_x, new_y = random_point(image, height, length, edges, extra_boundary)
 
 
             tree_x = 0
@@ -329,10 +327,12 @@ def draw_result(image, node_list, result, end, step_size):
             if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
                 result.putpixel((round_x, round_y), (255, 0, 0))
         else:
-            for x in range(round_x - 2, round_x + 2):
-                for y in range(round_y - 2, round_y + 2):
+            for x in range(round_x - 2, round_x + 3):
+                for y in range(round_y - 2, round_y + 3):
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                         result.putpixel((x, y), (255, 0, 0))
+            # if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
+            #     result.putpixel((round_x, round_y), (255, 0, 0))
 
     # Draw the end point
     for x in range(end[0] - 3, end[0] + 3):
@@ -402,7 +402,18 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
                 boundary[y][x] = 1
 
 
-    lt, edt, gdt, dt = RRT(image, node_list, potential_map, boundary, end, RRTIterations, laplaceIterations, step_size, 
+    edge_kernel = np.array([[1.0, 1.0, 1.0],
+                            [1.0, 1.0, 1.0],
+                            [1.0, 1.0, 1.0]])
+    extra_boundary = []
+    extra_boundary = cv2.filter2D(boundary, -1, edge_kernel)
+    extra_boundary[extra_boundary >= 1] = 255
+    extra_boundary[:, [0, 1, -1, -2]] = 255
+    extra_boundary[[0, 1, -1, -2], :] = 255
+
+  
+
+    lt, edt, gdt, dt, ei = RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTIterations, laplaceIterations, step_size, 
                        file_name, scaleDownFactor, startTime, result_images, times, distances, bpl, no_draw, w, h, result_edges)
     
 
@@ -521,6 +532,8 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     file.write("Edge Detection Time: " + str(edt) + "\n")
     file.write("Gradient Descent Time: " + str(gdt) + "\n")
     file.write("Drawing Time: " + str(dt) + "\n")
+    file.write("Total Time: " + str(round(endTime-startTime, 3)) + "\n")
+    file.write("It took " + str(ei) + " RRT Iterations to explore the whole map!" + "\n")
     file.close()
 
 
@@ -529,14 +542,14 @@ def main():
     conda = input("This is just for VSCode w/ Conda Python version, type anything here to start: ")
 
     images = ['world3']
-    RRTIterations = [int(20)]
+    RRTIterations = [int(60)]
     laplaceIterations = [int(200)]
 
     scaleDownFactor = int(2)
     end = '(310, 178)'
 
     step_size = int(1)
-    output_folder = 'apr30_videos'
+    output_folder = 'may7_videos'
 
     fps = int(120)
 

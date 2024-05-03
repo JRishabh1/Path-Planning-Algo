@@ -1,0 +1,6 @@
+Laplace Time: 1.4669907499337569
+Edge Detection Time: 0.06386695825494826
+Gradient Descent Time: 0.019444864301476628
+Drawing Time: 9.060234382282943
+Total Time: 12.944
+It took 11 RRT Iterations to explore the whole map!

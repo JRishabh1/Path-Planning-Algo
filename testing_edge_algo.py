@@ -23,19 +23,20 @@ laplacetimearray = []
 randompointtimearray = []
 graddescenttimearray = []
 # Generate a random point along the edges
-def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time, visualization):
-    potential_map_as_image = np.uint8(255 * potential_map)  
-    potential_map_as_image[(potential_map_as_image == 255) | (potential_map_as_image < 254)] = 0
-    potential_map_as_image[potential_map_as_image != 0] = 255
-    edge = cv2.Canny(potential_map_as_image, 50, 150)
-    edge_points = np.argwhere(edge > 0)
+def random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time, visualization, pointsss, edge_points):
+    # if pointsss == 0:
+    #     potential_map_as_image = np.uint8(255 * potential_map)  
+    #     potential_map_as_image[(potential_map_as_image == 255) | (potential_map_as_image < 254)] = 0
+    #     potential_map_as_image[potential_map_as_image != 0] = 255
+    #     edge = cv2.Canny(potential_map_as_image, 50, 150)
+    #     edge_points = np.argwhere(edge > 0)
     # cv2.imshow('Edges', edge)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
     # print(len(edge_points))
     if(len(edge_points) == 0):
-        return (-1, -1, potential_map)
+        return (-1, -1, potential_map, edge_points)
 
     len_per_iter.append(0) 
 
@@ -54,7 +55,7 @@ def random_point(start, height, length, potential_map, file_name, image, end, pr
                     if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                         result.putpixel((x, y), (0, 0, 255))
             result_images.append(result)
-    return (new_x, new_y, potential_map)
+    return (new_x, new_y, potential_map, edge_points)
 
 def LaPlace_average(potential_map, kernel, height, length, boundary_x, boundary_y, end, node_list, height_always, length_always, node_list_shape):
     potential_map = cv2.filter2D(potential_map, -1, kernel)
@@ -147,9 +148,16 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             return node_list
 
         # Get random point
-        for _ in range(branches_before_each_laplace):
+        newtime = time.time()
+        potential_map_as_image = np.uint8(255 * potential_map)  
+        potential_map_as_image[(potential_map_as_image == 255) | (potential_map_as_image < 254)] = 0
+        potential_map_as_image[potential_map_as_image != 0] = 255
+        edge = cv2.Canny(potential_map_as_image, 50, 150)
+        edge_points = np.argwhere(edge > 0)
+        randompointtime += time.time() - newtime
+        for am in range(branches_before_each_laplace):
             newtime = time.time()
-            new_x, new_y, potential_map = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time, visualization)
+            new_x, new_y, potential_map, edge_points = random_point(start, height, length, potential_map, file_name, image, end, prob_of_choosing_start, show_every_attempted_point, show_expansion, start_time, visualization, am, edge_points)
             randompointtime += time.time() - newtime
             if (new_x == -1):
                 laplacetimearray.append(laplacetime)
@@ -159,8 +167,12 @@ def RRT(image, start, end, iterations, step_size, file_name, prob_of_choosing_st
             
             othertime = time.time()
             new_node_list = try_grad_descent(potential_map, step_size, new_x, new_y, node_list)
+            # NOTE - THIS IS GETTING COUNTED IN GRAD DESCENT TIME - UPDATING NODES THAT WERE ADDED
+            # SO I DONT HAVE TO ITERATE OVER EVERY NODE EVERY TIME IN LAPLACE
             for node in new_node_list:
-                node_list_shape[int(node.y), int(node.x)] = True
+                y, x = int(node.y), int(node.x)
+                if 0 <= y < node_list_shape.shape[0] and 0 <= x < node_list_shape.shape[1]:
+                    node_list_shape[y, x] = True
             graddescenttime += time.time() - othertime
             i = i + len(new_node_list)
             node_list.extend(new_node_list)
@@ -353,13 +365,13 @@ def csv_to_graph(file):
 
 # TESTS BEING RUN:
 
-images_to_test = ["world1", "world2", "world3", "world4", "t_shape", "t_shape_other_way"]
+images_to_test = ["world3", "world4"]#["world1", "world2", "world3", "world4", "t_shape", "t_shape_other_way"]
 start = "(1, 1)"
 end = "(650, 350)"
 iterations = 1000
 step_size = 3
 laplace_iters_to_test = [50, 100, 200, 300, 500]
-branches_before_each_laplace = [1, 5, 10]
+branches_before_each_laplace = [1, 5, 10, 25, 50]
 prob_of_choosing_start = 0
 show_every_attempted_point = "y"
 show_expansion = "y"
@@ -386,7 +398,7 @@ for i in range(len(images_to_test)):
 
 
 
-with open('april_24_times_compiled.csv', 'w', newline='') as file:
+with open('april_24_new_times_compiled.csv', 'w', newline='') as file:
     csv_writer = csv.writer(file)
     csv_writer.writerow(['Test Name'] + testarray)
     csv_writer.writerow(['Total Time'] + timesarray)

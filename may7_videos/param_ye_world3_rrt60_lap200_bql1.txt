@@ -13,4 +13,4 @@ Enter the output tree image file (include .png at the end): res_ye_world3_rrt60_
 Enter the output plot image file (include .png at the end): plot_ye_world3_rrt60_lap200_bql1.png
 Enter the desired data file (include .csv at the end): data_ye_world3_rrt60_lap200_bql1.csv
 Iteration limit exceeded.
-Total Time: This took 12.944 seconds!
+Total Time: This took 13.209 seconds!

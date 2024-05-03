@@ -26,37 +26,40 @@ def random_point(image, height, length, edges, extra_boundary):
     new_y = -1
 
     while check:
-        if len(edges) == 0: # maybe the issue is this stop condition
+        # If there are no more edges to choose from, just choose a random point on the map
+        if len(edges) == 0: 
             new_x = random.randint(1, length - 2)
             new_y = random.randint(1, height - 2)
+
+        # Choose a random point from the (white) edges
         else:
             node = random.choice(edges)
             new_x = node[1]
             new_y = node[0]
-            
-        # If the pixel is black
+
+
+        # If the pixel is not on the boundary, stop and return this random point!
         if extra_boundary[new_y][new_x] == 0:
             check = False
 
     return (new_x, new_y)
 
-# Return the distance and angle between the new point and nearest node
+
+# Return the distance and angle between two points!
 def dist_and_angle(x1, y1, x2, y2):
     dist = math.sqrt( ((x1-x2)**2)+((y1-y2)**2) )
     angle = math.atan2(y2 - y1, x2 - x1)
     return (dist, angle)
 
-# RRT Algorithm
+
+# RRT-Laplace Algorithm
 def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTIterations, laplaceIterations, step_size, file_name, scaleDownFactor, start_time, result_images, times, distances, bpl, no_draw, w, h, result_edges):
 
-    # Constants
-    ph, pw = potential_map.shape
-    map_boundary = np.zeros((ph, pw))
-    map_boundary[:, [0, -1]] = 1
-    map_boundary[[0, -1], :] = 1
-
+    # Constants to check if all the map has been explored
     map_explored = False
     exploring_iterations = 0
+
+    ph, pw = potential_map.shape
 
 
     # Times for Each Operation
@@ -65,21 +68,29 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
     gradient_descent_time = 0
     drawing_time = 0
 
+
     # Height and length for image
     height = len(image)
     length = len(image[0])
+
 
     # Kernel for Laplace equation
     kernel = np.array([[0.00, 0.25, 0.00],
                        [0.25, 0.00, 0.25],
                        [0.00, 0.25, 0.00]])
+    
 
     # Zero Tree
     zero_tree = np.zeros((ph, pw))
     zero_tree[end[1]][end[0]] = 1
 
+    # The boundaries/edges of the image
+    map_boundary = np.zeros((ph, pw))
+    map_boundary[:, [0, -1]] = 1
+    map_boundary[[0, -1], :] = 1
 
-    total_iter = 0
+
+    total_iter = 0 # counts the total number of RRT iterations
     while True:
 
         # Laplace Equation
@@ -114,7 +125,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
         # Go from CV2 to PIL
         edge = Image.fromarray(cv2.cvtColor(edge, cv2.COLOR_BGR2RGB))
 
-
+        # Just for drawing the Edge Detection stuff
         tm1 = timer()
         
         if no_draw == False:
@@ -124,7 +135,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
             for by in range(bh):
                 for bx in range(bw):
                     draw_check = False
-                    # print(edge.getpixel((bx, by)))
+                    
                     if drawing_edge.getpixel((bx, by)) == (255, 255, 255):
                         draw_check = True
 
@@ -154,20 +165,23 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
         # Get array of edges
         edgeArray = np.asarray(new_edge)
         
+        # Find edges that aren't near the image boundaries/edges or the black obstacles
         edges = np.argwhere(edgeArray - extra_boundary == 255)
 
         m2 = timer()
 
         edge_detection_time += (m2 - m1)
         edge_detection_time -= (tm2 - tm1)
+        drawing_time += (tm2 - tm1)
 
+        # Checking to see if the entire map has been explored
         if len(edges) == 0 and map_explored == False:
             print("It took " + str(total_iter) + " RRT iterations to explore the whole map!")
             exploring_iterations = total_iter
             map_explored = True
 
 
-        # Drawing
+        # More drawing, I think this draws the red nodes and stuff, not the Edge Detection stuff
         if no_draw == False:
             m1 = timer()
 
@@ -204,23 +218,23 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
             drawing_time += (m2 - m1)
 
 
+
         # Gradient Descent
         gm1 = timer()
 
         temp_drawing_time = 0
 
-        for stuff in range(bpl):
-            # Total Iterations Count
+        for _ in range(bpl):
+            # Keep track of how many RRT iterations there have been
             total_iter = total_iter + 1
 
             if(total_iter >= RRTIterations):
                 print("Iteration limit exceeded.")
                 return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
-                # break
+            
 
-            # Get random point
+            # Get a random point!
             new_x, new_y = random_point(image, height, length, edges, extra_boundary)
-
 
             tree_x = 0
             tree_y = 0
@@ -233,29 +247,32 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
             check2 = False
 
             while True:
-
+                # this is just for stopping the program if there's some bug in Gradient Descent
                 if limit > 800:
-                    # print('Path not found! Maybe try providing more Laplace iterations!')
                     break
 
+                # Taking a step in Gradient Descent
                 gradr = map[round(poser+1)][round(posec)] - map[round(poser-1)][round(posec)]
                 gradc = map[round(poser)][round(posec+1)] - map[round(poser)][round(posec-1)]
                 maggrad = math.sqrt(gradr**2 + gradc**2)
 
                 if(maggrad != 0):
-                    # IF THIS LESS THAN ONE (MAYBE MAKE PARAMETER), "a", call this zero gradient
                     a = step_size/maggrad # scale to pixel
 
                     poser = poser-a*gradr
                     posec = posec-a*gradc
 
-                # If there is no gradient/no motion, throw away random points
-                if(poser != new_y and posec != new_x):
-                    new_node_list.append(Node(posec, poser))
 
+                # If there is no gradient/no motion, throw away this chosen random point!
+                if(poser != new_y and posec != new_x):
+                    # Creating the new red node
+                    new_node_list.append(Node(posec, poser))
                     zero_tree[round(poser)][round(posec)] = 1
+
                     check2 = True
 
+
+                    # Drawing stuff for Gradient Descent
                     if no_draw == False:
                         dm1 = timer()
 
@@ -274,7 +291,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
                         dm2 = timer()
                         temp_drawing_time += (dm2 - dm1)
                 
-                # Stop gradient descent
+
+                # Stopping Gradient Descent once it has reached the Zero Tree (all the red nodes)
                 break_check = False
                 for sy in range(0, 2):
                     for sx in range(0, 2):
@@ -286,6 +304,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
                 limit = limit + 1
 
             
+            # Updating the node list and zero tree (red points)
             if check2 == True:
                 pt = Node(new_x, new_y)
                 pt.point = True
@@ -303,6 +322,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
 
             node_list.extend(new_node_list)
 
+
         gm2 = timer()
 
         gradient_descent_time += (gm2 - gm1)
@@ -310,9 +330,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
         drawing_time += temp_drawing_time
 
         
-        
 
-# Draw the nodes and the path
+# Drawing Function for drawing all the nodes
 def draw_result(image, node_list, result, end, step_size):
     height = len(image)
     length = len(image[0])
@@ -340,9 +359,8 @@ def draw_result(image, node_list, result, end, step_size):
             if(0 < x and x < length - 1 and 0 < y and y < height - 1):
                 result.putpixel((x, y), (0, 0, 255))
 
-    # print(height, length, end)
 
-
+# RRT-Laplace Algorithm Setup
 def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterations, step_size, output_folder, output_path, 
                fps, output_image, output_plot, data_file, parameter_file, time_file, output_edge, bpl, no_draw):
     
@@ -350,7 +368,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     result_images = []
     result_edges = []
 
-    # Stuff for graph of gradient distances
+    # Stuff for Graphs/Plots
     times = []
     distances = []
 
@@ -361,7 +379,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     im = Image.open(image)
     w, h = im.size
 
-    # Varying the resizing
+    # Resizing to make algorithm run faster
     im = im.resize((round(w / scaleDownFactor), round(h / scaleDownFactor))) # just to make the image smaller
 
     image = np.asarray(im)
@@ -369,7 +387,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     height = len(image)
     length = len(image[0])
 
-    # End Point
+    # Getting the End Point
     end_comma = end.index(',')
 
     end_first_number = int(end[1:end_comma])
@@ -383,13 +401,14 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
 
     startTime = timer()
 
-
-    node_list = [] # Node List!
+    # Node List!
+    node_list = [] 
     node_list.append(Node(end[0], end[1]))
 
-    potential_map = np.ones((height, length)) # add 2 to both dimensions?
+    # Map of all the potential in the image through the algorithm (i think)
+    potential_map = np.ones((height, length)) 
 
-    # Get the black walls
+    # Get locations of where the black walls/pixels are!
     boundary = np.zeros((height, length))
 
     for y in range(height):
@@ -402,6 +421,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
                 boundary[y][x] = 1
 
 
+    # Computing the extra boundary (green area in video) to make sure Edge Detection works properly
     edge_kernel = np.array([[1.0, 1.0, 1.0],
                             [1.0, 1.0, 1.0],
                             [1.0, 1.0, 1.0]])
@@ -412,34 +432,37 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     extra_boundary[[0, 1, -1, -2], :] = 255
 
   
-
+    # Run the RRT-Laplace Algorithm
     lt, edt, gdt, dt, ei = RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTIterations, laplaceIterations, step_size, 
                        file_name, scaleDownFactor, startTime, result_images, times, distances, bpl, no_draw, w, h, result_edges)
     
 
     endTime = timer()
 
+    # Print all the time components!
     print(lt, edt, gdt, dt)
 
-    result = im.copy() # result image
+
+    # Drawing the final result image!
+    result = im.copy() 
     draw_result(image, node_list, result, end, step_size)
+    result = result.resize((w, h)) # make image go back to its original dimensions
 
-    result = result.resize((w, h)) # make image large again
 
-
+    # More drawing/video creation stuff!
     if no_draw == False:
-        # Create and save the video
         result_images.append(result)
 
-        writer = imageio.get_writer(output_folder + "/" + output_path, fps=fps) # removed fps?
+        # Video for the red points, showing gradient descent
+        writer = imageio.get_writer(output_folder + "/" + output_path, fps=fps) 
 
         for image_filename in result_images:
             writer.append_data(np.array(image_filename))
 
         writer.close()
 
-    
-        writer = imageio.get_writer(output_folder + "/" + output_edge, fps=2) # removed fps?
+        # Video for showing how the Edge Detection works
+        writer = imageio.get_writer(output_folder + "/" + output_edge, fps=2) 
 
         for image_filename in result_edges:
             writer.append_data(np.array(image_filename))
@@ -447,6 +470,9 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
         writer.close()
     
 
+    # ALL THE REST BELOW IS JUST CREATING THE PLOTS AND SAVING EVERYTHING INTO FILES
+    # ALL THE REST BELOW IS JUST CREATING THE PLOTS AND SAVING EVERYTHING INTO FILES
+    # ALL THE REST BELOW IS JUST CREATING THE PLOTS AND SAVING EVERYTHING INTO FILES
 
     # Show and save the tree image
     result.save(output_folder + "/" + output_image)
@@ -537,27 +563,29 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     file.close()
 
 
-
+# Main Function, specify the parameters you want to test!
 def main():
     conda = input("This is just for VSCode w/ Conda Python version, type anything here to start: ")
 
-    images = ['world3']
-    RRTIterations = [int(60)]
-    laplaceIterations = [int(200)]
+    images = ['world3', 'world4'] # What image do you want to use?
+    RRTIterations = [int(60)] # How many random points do you want?
+    laplaceIterations = [int(200)] # How many times do you want to run the Laplace Equation per random point?
 
-    scaleDownFactor = int(2)
-    end = '(310, 178)'
+    scaleDownFactor = int(2) # By how much do you want to scale down the image?
+    end = '(310, 178)' # Where do you want the end point to be?
 
-    step_size = int(1)
-    output_folder = 'may7_videos'
+    step_size = int(1) # Don't change this.
+    output_folder = 'may7_videos' # In which folder do you want to save the files?
 
-    fps = int(120)
+    fps = int(120) # What FPS do you want your Gradient Descent video to be in?
 
-    bpl = [int(1)]
+    bpl = [int(1)] # How many random points per batch of Laplace Equation runs do you want to have?
 
-    no_draw = False
+    no_draw = False # False = You get videos, True = You don't get videos
 
     
+    # Running the RRT-Laplace algorithm multiple times
+    # Note: Maybe change this to use less for loops? I'm pretty sure there's a way but I'm lazy and this isn't really useful to the runtime of the algorithm
     number = 1
     for i in range(len(images)):
         for j in range(len(RRTIterations)):

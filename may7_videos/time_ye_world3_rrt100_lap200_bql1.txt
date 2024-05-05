@@ -1,0 +1,4 @@
+Laplace Time: 3.234028667153325
+Edge Detection Time: 0.1096101223374717
+Gradient Descent Time: 0.039357088680844754
+Drawing Time: 16.693242915556766

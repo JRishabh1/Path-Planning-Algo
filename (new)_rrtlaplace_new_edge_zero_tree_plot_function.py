@@ -7,6 +7,8 @@ from timeit import default_timer as timer # Timer
 import imageio
 import matplotlib.pyplot as plt
 from itertools import accumulate
+import csv # save to CSV file
+from datetime import datetime
 
 
 # Node Class
@@ -73,6 +75,9 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
     height = len(image)
     length = len(image[0])
 
+    print("Height: " + str(height))
+    print("Length: " + str(length))
+
 
     # Kernel for Laplace equation
     kernel = np.array([[0.00, 0.25, 0.00],
@@ -98,7 +103,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
 
         map = potential_map.copy()
         
-        for j in range(laplaceIterations): 
+        for _ in range(laplaceIterations): 
             # use pytorch or cupy for this
             map = cv2.filter2D(map, -1, kernel)
 
@@ -116,19 +121,21 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
 
         new_map = map.copy()
         new_map[new_map != 1] = 200
-        new_map[new_map == 1] = 0 # previous: 50
+        new_map[new_map == 1] = 0 
         new_map = np.uint8(new_map)
        
         # Go from PIL to CV2
-        edge = cv2.Canny(new_map, 240, 250) # 50, 150
+        edge = cv2.Canny(new_map, 240, 250) 
         
         # Go from CV2 to PIL
         edge = Image.fromarray(cv2.cvtColor(edge, cv2.COLOR_BGR2RGB))
 
         # Just for drawing the Edge Detection stuff
-        tm1 = timer()
+        temp_time = 0
         
         if no_draw == False:
+            tm1 = timer()
+
             drawing_edge = edge.copy()
 
             bh, bw = extra_boundary.shape
@@ -153,12 +160,13 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
                         else:
                             drawing_edge.putpixel((bx, by), (255, 255, 255))
                         
-            # video_edge = drawing_edge.crop((2, 2, ewidth-3, eheight-3)) 
             result_edges.append(drawing_edge)
 
-        tm2 = timer()
+            tm2 = timer()
 
-            
+            temp_time += (tm2 - tm1)
+
+
         # Convert to grayscale image
         new_edge = ImageOps.grayscale(edge)
 
@@ -171,8 +179,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
         m2 = timer()
 
         edge_detection_time += (m2 - m1)
-        edge_detection_time -= (tm2 - tm1)
-        drawing_time += (tm2 - tm1)
+        edge_detection_time -= temp_time
+        drawing_time += temp_time
 
         # Checking to see if the entire map has been explored
         if len(edges) == 0 and map_explored == False:
@@ -244,7 +252,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, end, RRTItera
 
             limit = 0
             new_node_list = []
-            check2 = False
+            check2 = False # check to see if there was a gradient found between the random point and zero tree
 
             while True:
                 # this is just for stopping the program if there's some bug in Gradient Descent
@@ -362,7 +370,7 @@ def draw_result(image, node_list, result, end, step_size):
 
 # RRT-Laplace Algorithm Setup
 def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterations, step_size, output_folder, output_path, 
-               fps, output_image, output_plot, data_file, parameter_file, time_file, output_edge, bpl, no_draw):
+               fps, output_image, output_plot, data_file, parameter_file, time_file, time_plot_file, output_edge, bpl, no_draw):
     
     # Result Images for Video:
     result_images = []
@@ -558,21 +566,34 @@ def RRTLaplaceFunction(image, scaleDownFactor, end, RRTIterations, laplaceIterat
     file.write("Edge Detection Time: " + str(edt) + "\n")
     file.write("Gradient Descent Time: " + str(gdt) + "\n")
     file.write("Drawing Time: " + str(dt) + "\n")
-    file.write("Total Time: " + str(round(endTime-startTime, 3)) + "\n")
+    file.write("Total Time: " + str(endTime-startTime) + "\n")
     file.write("It took " + str(ei) + " RRT Iterations to explore the whole map!" + "\n")
     file.close()
 
+    # Plot times 
+    plt.plot([file_name], [endTime-startTime], marker='o', linestyle='None', label="Total Time")
+    plt.plot([file_name], [lt], marker='o', linestyle='None', label="Laplace Time")
+    plt.plot([file_name], [edt], marker='o', linestyle='None', label="Edge Detection Time")
+    plt.plot([file_name], [gdt], marker='o', linestyle='None', label="Gradient Descent Time")
+    plt.plot([file_name], [dt], marker='o', linestyle='None', label="Drawing Time")
+    plt.legend()
+    plt.savefig(output_folder + "/" + time_plot_file)
+    plt.close()
+
+    # Return data to create a combined .csv file
+    return (RRTIterations, laplaceIterations, file_name, scaleDownFactor, bpl, end, endTime-startTime, lt, edt, gdt, dt, ei, times, distances, total_distances)
+    
 
 # Main Function, specify the parameters you want to test!
 def main():
     conda = input("This is just for VSCode w/ Conda Python version, type anything here to start: ")
 
-    images = ['world3', 'world4'] # What image do you want to use?
+    images = ['world3'] # What image do you want to use?
     RRTIterations = [int(60)] # How many random points do you want?
     laplaceIterations = [int(200)] # How many times do you want to run the Laplace Equation per random point?
 
-    scaleDownFactor = int(2) # By how much do you want to scale down the image?
-    end = '(310, 178)' # Where do you want the end point to be?
+    scaleDownFactor = 0.5 # By how much do you want to scale down the image?
+    end = '(1240, 712)' # Where do you want the end point to be?
 
     step_size = int(1) # Don't change this.
     output_folder = 'may7_videos' # In which folder do you want to save the files?
@@ -581,17 +602,34 @@ def main():
 
     bpl = [int(1)] # How many random points per batch of Laplace Equation runs do you want to have?
 
-    no_draw = False # False = You get videos, True = You don't get videos
+    no_draw = True # False = You get videos, True = You don't get videos
 
     
     # Running the RRT-Laplace algorithm multiple times
     # Note: Maybe change this to use less for loops? I'm pretty sure there's a way but I'm lazy and this isn't really useful to the runtime of the algorithm
+    rrt_arr = []
+    lp_arr = []
+    file_name_arr = []
+    sdf_arr = []
+    bplr_arr = []
+    endr_arr = []
+    tt_arr = []
+    lt_arr = []
+    edt_arr = []
+    gdt_arr = []
+    dt_arr = []
+    ei_arr = []
+    times_arr = []
+    distances_arr = []
+    total_distances_arr = []
+    draw_arr = []
+
     number = 1
     for i in range(len(images)):
         for j in range(len(RRTIterations)):
             for k in range(len(laplaceIterations)):
                 for l in range(len(bpl)):
-                    specific = '_ye_' + images[i] + '_rrt' + str(RRTIterations[j]) + '_lap' + str(laplaceIterations[k]) + '_bql' + str(bpl[l])
+                    specific = '_ye_' + images[i] + '_rrt' + str(RRTIterations[j]) + '_lap' + str(laplaceIterations[k]) + '_bql' + str(bpl[l]) + '_sdf' + str(scaleDownFactor)
 
                     output_path = 'vid' + specific + '.mp4'
                     output_edge = 'edge' + specific + '.mp4'
@@ -600,13 +638,60 @@ def main():
                     data_file = 'data' + specific + '.csv'
                     parameter_file = 'param' + specific + '.txt'
                     time_file = 'time' + specific + '.txt'
+                    time_plot_file = 'timeplot' + specific + '.png'
 
-                    RRTLaplaceFunction(images[i] + '.png', scaleDownFactor, end, RRTIterations[j], laplaceIterations[k], 
+
+                    rrt, lp, file_name, sdf, bplr, endr, tt, lt, edt, gdt, dt, ei, times, distances, total_distances = RRTLaplaceFunction(images[i] + '.png', scaleDownFactor, end, RRTIterations[j], laplaceIterations[k], 
                                     step_size, output_folder, output_path, fps, output_image, output_plot, 
-                                    data_file, parameter_file, time_file, output_edge, bpl[l], no_draw)
+                                    data_file, parameter_file, time_file, time_plot_file, output_edge, bpl[l], no_draw)
+                    
+                    rrt_arr.append(rrt)
+                    lp_arr.append(lp)
+                    file_name_arr.append(file_name)
+                    sdf_arr.append(sdf)
+                    bplr_arr.append(bplr)
+                    endr_arr.append(endr)
+                    tt_arr.append(tt)
+                    lt_arr.append(lt)
+                    edt_arr.append(edt)
+                    gdt_arr.append(gdt)
+                    dt_arr.append(dt)
+                    ei_arr.append(ei)
+                    times_arr.append(times)
+                    distances_arr.append(distances)
+                    total_distances_arr.append(total_distances)
+                    draw_arr.append(no_draw)
                     
                     number = number + 1
 
 
+    current_time = datetime.now()
+    time_data_file = 'time ' + str(current_time) + '.csv' # note: special
+
+    # Write data from all the tests to CSV file
+    with open(output_folder + "/" + time_data_file, 'a') as file:
+        csv_writer = csv.writer(file)
+        csv_writer.writerow(rrt_arr)
+        csv_writer.writerow(lp_arr)
+        csv_writer.writerow(file_name_arr)
+        csv_writer.writerow(sdf_arr)
+        csv_writer.writerow(bplr_arr)
+        csv_writer.writerow(endr_arr)
+        csv_writer.writerow(tt_arr)
+        csv_writer.writerow(lt_arr)
+        csv_writer.writerow(edt_arr)
+        csv_writer.writerow(gdt_arr)
+        csv_writer.writerow(dt_arr)
+        csv_writer.writerow(ei_arr)
+        csv_writer.writerow(times_arr)
+        csv_writer.writerow(distances_arr)
+        csv_writer.writerow(total_distances_arr)
+        csv_writer.writerow(draw_arr)
+
+
+
+
 if __name__ == '__main__':
     main()
+
+

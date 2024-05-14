@@ -99,6 +99,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
     while True:
 
         # Laplace Equation
+        temp_animation_time = 0
+
         m1 = timer()
 
         map = potential_map.copy()
@@ -111,9 +113,36 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
             map[boundary == 1] = 1
             map[map_boundary == 1] = 1
 
+            
+            # Draw new stuff
+            pm1 = timer()
+
+            if show_animation == True:
+                row_indices, col_indices = np.nonzero(map != 1)
+
+                plt.plot(col_indices, row_indices, "xc")
+                # for stopping simulation with the esc key.
+                plt.gcf().canvas.mpl_connect('key_release_event',
+                                             lambda event: [exit(
+                                                 0) if event.key == 'escape' else None])
+                plt.pause(1e-5)
+
+            pm2 = timer()
+
+            temp_animation_time += (pm2 - pm1)
+
+
+            # Stop when end point is covered by gray area
+            if map[end[1]][end[0]] != 1:
+                print("End point covered!")
+                # LAPLACE TIME INACCURATE BELOW, FIX LATER, ALSO DRAWING TIME AND EXPLORING ITERATIONS
+                return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
+
+
         m2 = timer()
 
         laplace_time += (m2 - m1)
+        laplace_time -= temp_animation_time
 
 
         # Edge Detection
@@ -279,18 +308,18 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
                     zero_tree[round(poser)][round(posec)] = 1
 
 
-                    temp2_drawing_time = 0
+                    # temp2_drawing_time = 0
 
-                    # for matplotlib!!!
-                    if show_animation:
-                        pm1 = timer()
+                    # # for matplotlib!!!
+                    # if show_animation:
+                    #     pm1 = timer()
 
-                        plt.plot(round(posec), round(poser), "xc")
-                        plt.pause(0.00001)
+                    #     plt.plot(round(posec), round(poser), "xc")
+                    #     plt.pause(0.00001)
 
-                        pm2 = timer()
+                    #     pm2 = timer()
 
-                    temp2_drawing_time += (pm2 - pm1)
+                    # temp2_drawing_time += (pm2 - pm1)
 
 
                     check2 = True
@@ -315,10 +344,10 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
                         dm2 = timer()
                         temp_drawing_time += (dm2 - dm1)
                 
-                # Stop when we reach the end point
-                if(end[1]-1 < poser and poser < end[1]+1 and end[0]-1 < posec and posec < end[0]+1):
-                    print("End point reached!")
-                    return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
+                # # Stop when end point is covered by gray area
+                # if map[end[1]][end[0]] != 1:
+                #     print("End point covered!")
+                #     return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
 
                 # Stopping Gradient Descent once it has reached the Zero Tree (all the red nodes)
                 break_check = False
@@ -355,9 +384,9 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
         gradient_descent_time += (gm2 - gm1)
         gradient_descent_time -= temp_drawing_time
-        gradient_descent_time -= temp2_drawing_time
+        # gradient_descent_time -= temp2_drawing_time
         drawing_time += temp_drawing_time
-        drawing_time += temp2_drawing_time
+        # drawing_time += temp2_drawing_time
 
         
 
@@ -674,7 +703,7 @@ def main():
 
     no_draw = True # False = You get videos, True = You don't get videos
     
-    show_animation = True
+    show_animation = True # do you want the matplotlib animation to be shown?
 
 
 

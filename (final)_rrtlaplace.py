@@ -119,8 +119,9 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
             if show_animation == True:
                 row_indices, col_indices = np.nonzero(map != 1)
-
+                row_boundaries, col_boundaries = np.nonzero(zero_tree)
                 plt.plot(col_indices, row_indices, "xc")
+                plt.plot(col_boundaries, row_boundaries, ".r")
                 # for stopping simulation with the esc key.
                 plt.gcf().canvas.mpl_connect('key_release_event',
                                              lambda event: [exit(
@@ -136,6 +137,112 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
             if map[end[1]][end[0]] != 1:
                 print("End point covered!")
                 # LAPLACE TIME INACCURATE BELOW, FIX LATER, ALSO DRAWING TIME AND EXPLORING ITERATIONS
+                new_x, new_y = end[1], end[0]
+
+                tree_x = 0
+                tree_y = 0
+
+                poser = end[1]
+                posec = end[0]
+
+                limit = 0
+                new_node_list = []
+                check2 = False # check to see if there was a gradient found between the random point and zero tree
+
+                while True:
+                    # this is just for stopping the program if there's some bug in Gradient Descent
+                    if limit > 800:
+                        break
+
+                    # Taking a step in Gradient Descent
+                    gradr = map[round(poser+1)][round(posec)] - map[round(poser-1)][round(posec)]
+                    gradc = map[round(poser)][round(posec+1)] - map[round(poser)][round(posec-1)]
+                    maggrad = math.sqrt(gradr**2 + gradc**2)
+
+                    if(maggrad != 0):
+                        a = step_size/maggrad # scale to pixel
+
+                        poser = poser-a*gradr
+                        posec = posec-a*gradc
+
+
+                    # If there is no gradient/no motion, throw away this chosen random point!
+                    if(poser != new_y and posec != new_x):
+                        # Creating the new red node
+                        new_node_list.append(Node(posec, poser))
+                        zero_tree[round(poser)][round(posec)] = 1
+
+
+                        # temp2_drawing_time = 0
+
+                        # # for matplotlib!!!
+                        # if show_animation:
+                        #     pm1 = timer()
+
+                        #     plt.plot(round(posec), round(poser), "xc")
+                        #     plt.pause(0.00001)
+
+                        #     pm2 = timer()
+
+                        # temp2_drawing_time += (pm2 - pm1)
+
+
+                        check2 = True
+
+
+                        # Drawing stuff for Gradient Descent
+                        if no_draw == False:
+                            dm1 = timer()
+
+                            # Put image in video
+                            vResult = videoResult.copy()
+                            
+                            draw_result(image, new_node_list, vResult, start, end)
+                            for x in range(round(posec) - 2, round(posec) + 2):
+                                for y in range(round(poser) - 2, round(poser) + 2):
+                                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                                        vResult.putpixel((x, y), (255, 0, 0))
+
+                            vResult = vResult.resize((w, h)) # make image large again
+                            result_images.append(vResult)
+
+                            dm2 = timer()
+                            temp_drawing_time += (dm2 - dm1)
+                    
+                    # # Stop when end point is covered by gray area
+                    # if map[end[1]][end[0]] != 1:
+                    #     print("End point covered!")
+                    #     return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
+
+                    # Stopping Gradient Descent once it has reached the Zero Tree (all the red nodes)
+                    break_check = False
+                    for sy in range(0, 2):
+                        for sx in range(0, 2):
+                            if map[math.floor(poser)+sy][math.floor(posec)+sx] == 0:
+                                break_check = True
+                    if break_check == True:
+                        break
+
+                    limit = limit + 1
+
+                            # Draw new stuff
+                pm1 = timer()
+
+                if show_animation == True:
+                    row_indices, col_indices = np.nonzero(map != 1)
+                    row_boundaries, col_boundaries = np.nonzero(zero_tree)
+                    plt.plot(col_indices, row_indices, "xc")
+                    plt.plot(col_boundaries, row_boundaries, ".r")
+                    # for stopping simulation with the esc key.
+                    plt.gcf().canvas.mpl_connect('key_release_event',
+                                                lambda event: [exit(
+                                                    0) if event.key == 'escape' else None])
+                    plt.pause(5)
+
+                pm2 = timer()
+
+                temp_animation_time += (pm2 - pm1)
+
                 return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
 
 
@@ -688,7 +795,7 @@ def main():
 
     images = ['metrics'] # What image do you want to use?
     RRTIterations = [int(500)] # How many random points do you want?
-    laplaceIterations = [int(50)] # How many times do you want to run the Laplace Equation per random point?
+    laplaceIterations = [int(20)] # How many times do you want to run the Laplace Equation per random point?
 
     scaleDownFactor = [1] # By how much do you want to scale down the image?
     start = ['(30, 30)'] # Where do you want the start point to be?
@@ -699,7 +806,7 @@ def main():
 
     fps = int(120) # What FPS do you want your Gradient Descent video to be in?
 
-    bpl = [int(1)] # How many random points per batch of Laplace Equation runs do you want to have?
+    bpl = [int(5)] # How many random points per batch of Laplace Equation runs do you want to have?
 
     no_draw = True # False = You get videos, True = You don't get videos
     

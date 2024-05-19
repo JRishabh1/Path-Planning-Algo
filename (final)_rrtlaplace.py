@@ -75,8 +75,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
     height = len(image)
     length = len(image[0])
 
-    print("Height: " + str(height))
-    print("Length: " + str(length))
+    # print("Height: " + str(height))
+    # print("Length: " + str(length))
 
 
     # Kernel for Laplace equation
@@ -98,6 +98,8 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
     total_iter = 0 # counts the total number of RRT iterations
     while True:
 
+        # THERE IS SOME TIMING BELOW THAT IS WRONG!!!
+
         # Laplace Equation
         temp_animation_time = 0
 
@@ -115,28 +117,41 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
             
             # Draw new stuff
-            pm1 = timer()
+            pm1 = 0
+            pm2 = 0
 
             if show_animation == True:
+                pm1 = timer()
+
                 row_indices, col_indices = np.nonzero(map != 1)
-                row_boundaries, col_boundaries = np.nonzero(zero_tree)
+
+                col_boundaries = []
+                row_boundaries = []
+                for red_node in node_list:
+                    col_boundaries.append(red_node.x)
+                    row_boundaries.append(red_node.y)
+                # row_boundaries, col_boundaries = np.nonzero(zero_tree)
                 plt.plot(col_indices, row_indices, "xc")
                 plt.plot(col_boundaries, row_boundaries, ".r")
                 # for stopping simulation with the esc key.
                 plt.gcf().canvas.mpl_connect('key_release_event',
                                              lambda event: [exit(
                                                  0) if event.key == 'escape' else None])
-                plt.pause(1e-5)
+                plt.pause(1e-6)
 
-            pm2 = timer()
+                pm2 = timer()
 
+        
             temp_animation_time += (pm2 - pm1)
+
 
 
             # Stop when end point is covered by gray area
             if map[end[1]][end[0]] != 1:
-                print("End point covered!")
+
+                # print("End point covered!")
                 # LAPLACE TIME INACCURATE BELOW, FIX LATER, ALSO DRAWING TIME AND EXPLORING ITERATIONS
+
                 new_x, new_y = end[1], end[0]
 
                 tree_x = 0
@@ -167,7 +182,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
 
                     # If there is no gradient/no motion, throw away this chosen random point!
-                    if(poser != new_y and posec != new_x):
+                    if(poser != new_y or posec != new_x):
                         # Creating the new red node
                         new_node_list.append(Node(posec, poser))
                         zero_tree[round(poser)][round(posec)] = 1
@@ -186,13 +201,13 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
                         # temp2_drawing_time += (pm2 - pm1)
 
-
                         check2 = True
+
 
 
                         # Drawing stuff for Gradient Descent
                         if no_draw == False:
-                            dm1 = timer()
+                            
 
                             # Put image in video
                             vResult = videoResult.copy()
@@ -206,8 +221,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
                             vResult = vResult.resize((w, h)) # make image large again
                             result_images.append(vResult)
 
-                            dm2 = timer()
-                            temp_drawing_time += (dm2 - dm1)
+                            
                     
                     # # Stop when end point is covered by gray area
                     # if map[end[1]][end[0]] != 1:
@@ -225,12 +239,26 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
                     limit = limit + 1
 
-                            # Draw new stuff
-                pm1 = timer()
+
+                # Draw new stuff
+                pm1 = 0
+                pm2 = 0
+
+                node_list.extend(new_node_list) # for drawing the last line
 
                 if show_animation == True:
+                    pm1 = timer()
+
                     row_indices, col_indices = np.nonzero(map != 1)
-                    row_boundaries, col_boundaries = np.nonzero(zero_tree)
+                    # print(node_list)
+                    col_boundaries = []
+                    row_boundaries = []
+                    # node_list.extend(new_node_list) # for drawing the last line
+                    node_list.append(Node(end[0], end[1]))
+                    for red_node in node_list:
+                        col_boundaries.append(red_node.x)
+                        row_boundaries.append(red_node.y)
+                    # row_boundaries, col_boundaries = np.nonzero(zero_tree)
                     plt.plot(col_indices, row_indices, "xc")
                     plt.plot(col_boundaries, row_boundaries, ".r")
                     # for stopping simulation with the esc key.
@@ -238,10 +266,6 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
                                                 lambda event: [exit(
                                                     0) if event.key == 'escape' else None])
                     plt.pause(5)
-
-                pm2 = timer()
-
-                temp_animation_time += (pm2 - pm1)
 
                 return [laplace_time, edge_detection_time, gradient_descent_time, drawing_time, exploring_iterations]
 
@@ -330,7 +354,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
         if no_draw == False:
             m1 = timer()
 
-            test_im3 = Image.open(file_name)
+            test_im3 = Image.open('TestImages/' + file_name)
             w3, h3 = test_im3.size
 
             test_im3 = test_im3.resize((round(w3 / scaleDownFactor), round(h3 / scaleDownFactor))) # just to make the image smaller
@@ -409,7 +433,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
 
 
                 # If there is no gradient/no motion, throw away this chosen random point!
-                if(poser != new_y and posec != new_x):
+                if(poser != new_y or posec != new_x):
                     # Creating the new red node
                     new_node_list.append(Node(posec, poser))
                     zero_tree[round(poser)][round(posec)] = 1
@@ -549,7 +573,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     file_name = image
 
     # Get image and convert to 2D array
-    im = Image.open(image)
+    im = Image.open('TestImages/' + image)
     w, h = im.size
 
     # Resizing to make algorithm run faster
@@ -577,8 +601,6 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
         raise Exception("Sorry, the inputted end point is not in the image!")
 
 
-    startTime = timer()
-
     # Node List!
     node_list = [] 
     node_list.append(Node(start[0], start[1]))
@@ -605,25 +627,13 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     gx = 70.0  # [m]
     gy = 70.0  # [m]
 
-    ox, oy = [], []
-    for i in range(10, 80):
-        ox.append(i)
-        oy.append(10.0)
-    for i in range(10, 80):
-        ox.append(80.0)
-        oy.append(i)
-    for i in range(10, 81):
-        ox.append(i)
-        oy.append(80.0)
-    for i in range(10, 81):
-        ox.append(10.0)
-        oy.append(i)
-    for i in range(10, 60):
-        ox.append(40.0)
-        oy.append(i)
-    for i in range(0, 40):
-        ox.append(60.0)
-        oy.append(80.0 - i)
+    mat_im = Image.open('TestImages/' + file_name)
+
+    mat_gray_im = ImageOps.grayscale(mat_im)
+
+    mat_image = np.asarray(mat_gray_im)
+
+    oy, ox = np.where(mat_image == 0)
 
     if show_animation:  # pragma: no cover
         plt.plot(ox, oy, ".k")
@@ -644,6 +654,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     extra_boundary[:, [0, 1, -1, -2]] = 255
     extra_boundary[[0, 1, -1, -2], :] = 255
 
+    startTime = timer()
   
     # Run the RRT-Laplace Algorithm
     lt, edt, gdt, dt, ei = RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, RRTIterations, laplaceIterations, step_size, 
@@ -660,6 +671,8 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     result = im.copy() 
     draw_result(image, node_list, result, start, end)
     result = result.resize((w, h)) # make image go back to its original dimensions
+
+    result.show()
 
 
     # More drawing/video creation stuff!
@@ -793,24 +806,24 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
 def main():
     conda = input("This is just for VSCode w/ Conda Python version, type anything here to start: ")
 
-    images = ['metrics'] # What image do you want to use?
+    images = ['blank', 'boxes', 'few_walls', 'more_walls'] # What image do you want to use?
     RRTIterations = [int(500)] # How many random points do you want?
-    laplaceIterations = [int(20)] # How many times do you want to run the Laplace Equation per random point?
+    laplaceIterations = [int(500)] # How many times do you want to run the Laplace Equation per random point?
 
     scaleDownFactor = [1] # By how much do you want to scale down the image?
-    start = ['(30, 30)'] # Where do you want the start point to be?
-    end = ['(70, 70)'] # Where do you want the end point to be?
+    start = ['(15, 15)'] # Where do you want the start point to be?
+    end = ['(75, 75)'] # Where do you want the end point to be?
 
     step_size = int(1) # Don't change this.
-    output_folder = 'may14_videos' # In which folder do you want to save the files?
+    output_folder = 'may21_videos' # In which folder do you want to save the files?
 
     fps = int(120) # What FPS do you want your Gradient Descent video to be in?
 
-    bpl = [int(5)] # How many random points per batch of Laplace Equation runs do you want to have?
+    bpl = [int(1)] # How many random points per batch of Laplace Equation runs do you want to have?
 
     no_draw = True # False = You get videos, True = You don't get videos
     
-    show_animation = True # do you want the matplotlib animation to be shown?
+    show_animation = False # do you want the matplotlib animation to be shown?
 
 
 
@@ -836,17 +849,17 @@ def main():
                                         step_size, output_folder, output_path, fps, output_image, output_plot, 
                                         data_file, parameter_file, time_file, time_plot_file, output_edge, bpl[l], no_draw, show_animation)
                         
-                        print('World Used: ' + file_name) 
-                        print('Laplace Iterations: ' + str(lp))
-                        print('Scale Down Factor: ' + str(sdf))
-                        print('Branches per Laplace: ' + str(bplr))
+                        # print('World Used: ' + file_name) 
+                        # print('Laplace Iterations: ' + str(lp))
+                        # print('Scale Down Factor: ' + str(sdf))
+                        # print('Branches per Laplace: ' + str(bplr))
                         
                         print('Total Time: ' + str(tt))
-                        print('Laplace Time: ' + str(lt))
-                        print('Edge Detection Time: ' + str(edt))
-                        print('Gradient Descent Time: ' + str(gdt))
-                        print('Drawing Time: ' + str(dt))
-                        print('It took ' + str(ei) + ' random points/iterations to explore the entire world!')
+                        # print('Laplace Time: ' + str(lt))
+                        # print('Edge Detection Time: ' + str(edt))
+                        # print('Gradient Descent Time: ' + str(gdt))
+                        # print('Drawing Time: ' + str(dt))
+                        # print('It took ' + str(ei) + ' random points/iterations to explore the entire world!')
 
                         
                         number = number + 1
@@ -857,5 +870,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

@@ -145,7 +145,7 @@ def RRT(image, node_list, start, end, iterations, step_size, file_name, line_lis
 
         # Create Video
         if no_draw == False:
-            im = Image.open('TestImages/' + file_name)
+            im = Image.open(file_name)
             videoResult = im.copy()
 
             draw_result(image, node_list, videoResult, start, end)
@@ -219,13 +219,12 @@ def draw_result(image, node_list, result, start, end):
             parent_x = round(node.parent[-2].x)
             parent_y = round(node.parent[-2].y)
        
-        for x in range(round_x - 1, round_x + 1):
-            for y in range(round_y - 1, round_y + 1):
-                if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-                    result.putpixel((x, y), (255, 0, 0))
+        
+        if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
+            result.putpixel((x, y), (255, 0, 0))
 
         line = ((round_x, round_y), (parent_x, parent_y))
-        draw.line((line), fill=(255, 0, 0), width=2)
+        draw.line((line), fill=(255, 0, 0), width=1)
 
 
 def RRTOriginalFunction(image, start, end, iterations, step_size, output_folder, output_path, fps, 
@@ -242,7 +241,7 @@ def RRTOriginalFunction(image, start, end, iterations, step_size, output_folder,
     file_name = image
 
     # Get image and convert to 2D array
-    im = Image.open('TestImages/' + image)
+    im = Image.open(image)
     image = np.asarray(im)
 
     height = len(image)
@@ -276,6 +275,8 @@ def RRTOriginalFunction(image, start, end, iterations, step_size, output_folder,
     result = im.copy() # result image
     draw_result(image, node_list, result, start, end)
 
+
+    result = result.resize((500, 500))
     result.show()
 
     result_images.append(result)
@@ -391,9 +392,9 @@ def main():
     # RRTIterations = [int(100), int(150), int(200)]
     # laplaceIterations = [int(200)]
 
-    images = ['blank', 'boxes', 'few_walls', 'more_walls']
+    images = ['boxes']
     iterations = [int(100000)]
-    step_sizes = [20]
+    step_sizes = [1]
 
     # images = ['world4']
     # iterations = [int(100)]

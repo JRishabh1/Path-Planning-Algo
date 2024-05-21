@@ -79,7 +79,7 @@ def draw_path(start, end, path_x, path_y, step_size, image, result):
 def main():
     conda = input("This is just for VSCode using the Conda Python version, type anything here: ")
 
-    image = 'TestImages/few_walls.png'
+    image = 'boxes.png'
 
     # Get image and convert to 2D array
     im = Image.open(image)
@@ -106,7 +106,7 @@ def main():
     end = (end_first_number, end_second_number)
 
     grad_itr = 5000
-    laplace_itr = 5000000
+    laplace_itr = 200000
     step_size = 1
 
     result = im.copy() # result image
@@ -175,6 +175,7 @@ def main():
     # if height < 150 or length < 150: # for tiny images
     #     result = result.resize((300, 300))
     # result = result.resize((300, 300)) # make image large again
+    result = result.resize((500, 500))
     result.show()
 
     # im.save('tinyimage1.png')

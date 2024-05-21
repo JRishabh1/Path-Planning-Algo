@@ -354,7 +354,7 @@ def RRT(image, node_list, potential_map, boundary, extra_boundary, start, end, R
         if no_draw == False:
             m1 = timer()
 
-            test_im3 = Image.open('TestImages/' + file_name)
+            test_im3 = Image.open(file_name)
             w3, h3 = test_im3.size
 
             test_im3 = test_im3.resize((round(w3 / scaleDownFactor), round(h3 / scaleDownFactor))) # just to make the image smaller
@@ -536,25 +536,29 @@ def draw_result(image, node_list, result, start, end):
             if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
                 result.putpixel((round_x, round_y), (255, 0, 0))
         else:
-            # for x in range(round_x - 2, round_x + 3):
-            #     for y in range(round_y - 2, round_y + 3):
-            #         if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-            #             result.putpixel((x, y), (255, 0, 0))
+            for x in range(round_x - 2, round_x + 3):
+                for y in range(round_y - 2, round_y + 3):
+                    if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                        result.putpixel((x, y), (255, 0, 0))
             
-            if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
-                result.putpixel((round_x, round_y), (255, 0, 0))
+            # if(0 < round_x and round_x < length - 1 and 0 < round_y and round_y < height - 1):
+            #     result.putpixel((round_x, round_y), (255, 0, 0))
 
     # Draw the start point
-    # for x in range(start[0] - 1, start[0] + 1):
-    #     for y in range(start[1] - 1, start[1] + 1):
-    #         if(0 < x and x < length - 1 and 0 < y and y < height - 1):
-    #             result.putpixel((x, y), (0, 0, 255))
-    if(0 < start[0] and start[0] < length - 1 and 0 < start[1] and start[1] < height - 1):
-        result.putpixel((start[0], start[1]), (0, 0, 255))
+    for x in range(start[0] - 4, start[0] + 4):
+        for y in range(start[1] - 4, start[1] + 4):
+            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                result.putpixel((x, y), (0, 0, 255))
+    # if(0 < start[0] and start[0] < length - 1 and 0 < start[1] and start[1] < height - 1):
+    #     result.putpixel((start[0], start[1]), (0, 0, 255))
 
     # Draw the end point
-    if(0 < end[0] and end[0] < length - 1 and 0 < end[1] and end[1] < height - 1):
-        result.putpixel((end[0], end[1]), (0, 255, 0))
+    for x in range(end[0] - 4, end[0] + 4):
+        for y in range(end[1] - 4, end[1] + 4):
+            if(0 < x and x < length - 1 and 0 < y and y < height - 1):
+                result.putpixel((x, y), (0, 255, 0))
+    # if(0 < end[0] and end[0] < length - 1 and 0 < end[1] and end[1] < height - 1):
+    #     result.putpixel((end[0], end[1]), (0, 255, 0))
 
 
 # RRT-Laplace Algorithm Setup
@@ -573,7 +577,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     file_name = image
 
     # Get image and convert to 2D array
-    im = Image.open('TestImages/' + image)
+    im = Image.open(image)
     w, h = im.size
 
     # Resizing to make algorithm run faster
@@ -627,7 +631,7 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
     gx = 70.0  # [m]
     gy = 70.0  # [m]
 
-    mat_im = Image.open('TestImages/' + file_name)
+    mat_im = Image.open(file_name)
 
     mat_gray_im = ImageOps.grayscale(mat_im)
 
@@ -806,13 +810,13 @@ def RRTLaplaceFunction(image, scaleDownFactor, start, end, RRTIterations, laplac
 def main():
     conda = input("This is just for VSCode w/ Conda Python version, type anything here to start: ")
 
-    images = ['blank', 'boxes', 'few_walls', 'more_walls'] # What image do you want to use?
+    images = ['world4'] # What image do you want to use?
     RRTIterations = [int(500)] # How many random points do you want?
-    laplaceIterations = [int(500)] # How many times do you want to run the Laplace Equation per random point?
+    laplaceIterations = [int(100)] # How many times do you want to run the Laplace Equation per random point?
 
     scaleDownFactor = [1] # By how much do you want to scale down the image?
-    start = ['(15, 15)'] # Where do you want the start point to be?
-    end = ['(75, 75)'] # Where do you want the end point to be?
+    start = ['(30, 30)'] # Where do you want the start point to be?
+    end = ['(650, 350)'] # Where do you want the end point to be?
 
     step_size = int(1) # Don't change this.
     output_folder = 'may21_videos' # In which folder do you want to save the files?
